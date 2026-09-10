@@ -32,6 +32,11 @@ jobs:
           Write-Host "Repo: $env:GITHUB_REPOSITORY"
           Write-Host "Commit: $env:GITHUB_SHA"
 
+      - name: Modernize legacy source tokens for VS2022
+        shell: powershell
+        run: |
+          python q4bse_port/modernize_vs2022.py "$env:GITHUB_WORKSPACE"
+
       - name: Apply source-integrated Q4BSE patch
         shell: powershell
         run: |
