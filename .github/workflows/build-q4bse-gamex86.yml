@@ -1,0 +1,88 @@
+name: Build Q4BSE Doom 3 Game DLL
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - q4bse-port
+    paths:
+      - 'q4bse_port/**'
+      - '.github/workflows/build-q4bse-gamex86.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-game-dll:
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Show compiler environment
+        shell: powershell
+        run: |
+          Write-Host "MSBuild:"
+          msbuild -version
+          Write-Host "Repo: $env:GITHUB_REPOSITORY"
+          Write-Host "Commit: $env:GITHUB_SHA"
+
+      - name: Apply source-integrated Q4BSE patch
+        shell: powershell
+        run: |
+          python q4bse_port/apply_q4bse_m1.py "$env:GITHUB_WORKSPACE"
+
+      - name: Build TypeInfo Win32 Release
+        shell: cmd
+        run: >-
+          msbuild neo\doom.sln /t:TypeInfo /m
+          /p:Configuration=Release /p:Platform=Win32
+          /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
+          /verbosity:minimal
+
+      - name: Build Game Win32 Release
+        shell: cmd
+        run: >-
+          msbuild neo\doom.sln /t:Game /m
+          /p:Configuration=Release /p:Platform=Win32
+          /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
+          /verbosity:minimal
+
+      - name: Verify gamex86.dll
+        shell: powershell
+        run: |
+          $dll = Join-Path $env:GITHUB_WORKSPACE 'build\Win32\Release\gamex86.dll'
+          if (!(Test-Path $dll)) { throw "gamex86.dll was not produced at $dll" }
+          Get-Item $dll | Format-List FullName,Length,LastWriteTime
+          Get-FileHash $dll -Algorithm SHA256
+
+      - name: Stage test artifact
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
+          @"
+          Q4BSE M1 SOURCE-INTEGRATED TEST
+          =================================
+          This gamex86.dll is built from id-Software/DOOM-3 Game source with Q4BSE code compiled in.
+          No wrapper DLL, no Phrozo DLL, no vtable patching.
+
+          Quake 4 content is intentionally NOT stored in this public repository.
+          Put the private q4bse_m1_test_content.pk4 beside this DLL in a clean Doom 3 mod folder.
+
+          Console after map load:
+            q4bse_status
+            q4bse_m1_flash
+          "@ | Set-Content artifact\README_TEST.txt
+
+      - name: Upload game DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-M1-gamex86
+          path: artifact/
+          if-no-files-found: error
