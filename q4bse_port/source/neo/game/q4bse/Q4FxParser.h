@@ -71,6 +71,11 @@ public:
 std::string DumpEffect(const Effect& fx);
 const Segment* FindSegment(const Effect& fx, const char* name);
 
+// Shared domain lookup used by both the portable core and the source-integrated
+// M3 runtime. The implementation lives in Q4BSECore.cpp.
+const Domain* FindDomain(const std::vector< std::pair<std::string, Domain> >& block,
+                         const char* property);
+
 } // namespace q4bse
 
 #endif
