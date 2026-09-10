@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Apply Q4BSE M1 to a clean id-Software/DOOM-3 GPL source tree.
+"""Apply the source-integrated Q4BSE runtime to a clean Doom 3 GPL tree.
 
-This patch is intentionally source-only.  It creates one normal Game DLL with
-Q4BSE code compiled inside it.  It does NOT wrap, forward to, patch, or load
-Phrozo or any other game DLL.
+The result is one ordinary Win32 Game DLL with the Raven-FX parser/runtime
+compiled directly into it.  No wrapper DLL, forwarding DLL, vtable patch,
+binary detour, or Phrozo dependency is introduced.
 """
 from pathlib import Path
 import shutil
@@ -37,9 +37,6 @@ for p in (LOCAL, PROJ, SIMD):
         shutil.copy2(p, bak)
 
 # Modern MSVC compatibility for two 2011-era adjacent string/macro tokens.
-# Old source: "text "S_COLOR_RED"X".  VS2022 treats that as a user-defined
-# literal suffix.  Adding whitespace preserves the original C/C++ string
-# concatenation semantics and changes no runtime behavior.
 simd_text = SIMD.read_text(encoding="utf-8-sig")
 old_memcpy = 'idLib::common->Printf( "   simd->Memcpy() "S_COLOR_RED"X\\n" );'
 new_memcpy = 'idLib::common->Printf( "   simd->Memcpy() " S_COLOR_RED "X\\n" );'
@@ -57,33 +54,53 @@ SIMD.write_text(simd_text, encoding="utf-8")
 
 text = LOCAL.read_text(encoding="utf-8-sig")
 
-# 1) Header include.
+# 1) Headers for the proven M1/M2 diagnostic path and the M3 full-impact path.
 anchor = '#include "Game_local.h"'
-include = '#include "q4bse/Q4BSEDoom3.h"'
-if include not in text:
+include_m2 = '#include "q4bse/Q4BSEDoom3.h"'
+include_m3 = '#include "q4bse/Q4BSEImpactM3.h"'
+if include_m2 not in text or include_m3 not in text:
     if anchor not in text:
         raise SystemExit("ERROR: Game_local.cpp include anchor not found")
-    text = text.replace(anchor, anchor + "\n" + include, 1)
+    block = anchor
+    if include_m2 not in text:
+        block += "\n" + include_m2
+    if include_m3 not in text:
+        block += "\n" + include_m3
+    text = text.replace(anchor, block, 1)
 
 # 2) One-time subsystem initialization after normal game console commands exist.
 anchor = "\tInitConsoleCommands();"
-call = "\tQ4BSE_Init();"
-if call not in text:
+call_m2 = "\tQ4BSE_Init();"
+call_m3 = "\tQ4BSE_M3_Init();"
+if call_m2 not in text or call_m3 not in text:
     if anchor not in text:
         raise SystemExit("ERROR: InitConsoleCommands anchor not found")
-    text = text.replace(anchor, anchor + "\n\n\t// Q4BSE M1: source-integrated Raven FX subsystem.\n" + call, 1)
+    block = anchor + "\n\n\t// Q4BSE: source-integrated Raven FX runtimes.\n"
+    if call_m2 not in text:
+        block += call_m2 + "\n"
+    if call_m3 not in text:
+        block += call_m3
+    text = text.replace(anchor, block.rstrip(), 1)
 
-# 3) Shutdown before game commands are removed.
+# 3) Shutdown before game commands are removed. M3 is torn down before M2.
 anchor = "\tShutdownConsoleCommands();"
-call = "\tQ4BSE_Shutdown();"
-if call not in text:
+call_m3 = "\tQ4BSE_M3_Shutdown();"
+call_m2 = "\tQ4BSE_Shutdown();"
+if call_m3 not in text or call_m2 not in text:
     if anchor not in text:
         raise SystemExit("ERROR: ShutdownConsoleCommands anchor not found")
-    text = text.replace(anchor, "\t// Q4BSE M1: release render defs/models and commands.\n" + call + "\n\n" + anchor, 1)
+    block = "\t// Q4BSE: release runtime objects and commands.\n"
+    if call_m3 not in text:
+        block += call_m3 + "\n"
+    if call_m2 not in text:
+        block += call_m2 + "\n"
+    block += "\n" + anchor
+    text = text.replace(anchor, block, 1)
 
-# 4) Map-begin parser load.  Scope the search to InitFromNewMap to avoid a wrong MapPopulate.
-call = "\tQ4BSE_BeginMap();"
-if call not in text:
+# 4) Map-begin parser/runtime load. Scope search to InitFromNewMap.
+call_m2 = "\tQ4BSE_BeginMap();"
+call_m3 = "\tQ4BSE_M3_BeginMap();"
+if call_m2 not in text or call_m3 not in text:
     fn = 'void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorld, idSoundWorld *soundWorld, bool isServer, bool isClient, int randseed ) {'
     pos = text.find(fn)
     if pos < 0:
@@ -95,21 +112,33 @@ if call not in text:
     if a < 0:
         raise SystemExit("ERROR: MapPopulate anchor not found inside InitFromNewMap")
     a += len("\tMapPopulate();")
-    text = text[:a] + "\n\n\t// Q4BSE M1: parse real Raven .fx via normal Doom 3 VFS.\n" + call + text[a:]
+    block = "\n\n\t// Q4BSE: parse real Raven .fx via the normal Doom 3 VFS.\n"
+    if call_m2 not in text:
+        block += call_m2 + "\n"
+    if call_m3 not in text:
+        block += call_m3
+    text = text[:a] + block.rstrip() + text[a:]
 
-# 5) Map-end cleanup.  Safe to call more than once.
-call = "\tQ4BSE_EndMap();"
-if call not in text:
+# 5) Map-end cleanup. Safe to call more than once.
+call_m3 = "\tQ4BSE_M3_EndMap();"
+call_m2 = "\tQ4BSE_EndMap();"
+if call_m3 not in text or call_m2 not in text:
     sig = "void idGameLocal::MapShutdown( void ) {"
     pos = text.find(sig)
     if pos < 0:
         raise SystemExit("ERROR: MapShutdown signature not found")
     pos += len(sig)
-    text = text[:pos] + "\n\t// Q4BSE M1: free source-integrated runtime render objects first.\n" + call + text[pos:]
+    block = "\n\t// Q4BSE: free source-integrated runtime render objects first.\n"
+    if call_m3 not in text:
+        block += call_m3 + "\n"
+    if call_m2 not in text:
+        block += call_m2
+    text = text[:pos] + block.rstrip() + text[pos:]
 
-# 6) Service runtime lifetime from the normal game frame, no engine/vtable hooks.
-call = "\tQ4BSE_Frame( time );"
-if call not in text:
+# 6) Service both runtimes from the ordinary game frame, no engine/vtable hooks.
+call_m2 = "\tQ4BSE_Frame( time );"
+call_m3 = "\tQ4BSE_M3_Frame( time );"
+if call_m2 not in text or call_m3 not in text:
     run = text.find("gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {")
     if run < 0:
         raise SystemExit("ERROR: RunFrame signature not found")
@@ -117,7 +146,13 @@ if call not in text:
     a = text.find(anchor, run)
     if a < 0:
         raise SystemExit("ERROR: RunFrame debug-info anchor not found")
-    text = text[:a] + "\t// Q4BSE M1: service live BSE instances from the ordinary Game DLL frame.\n" + call + "\n\n" + text[a:]
+    block = "\t// Q4BSE: service live BSE instances from the ordinary Game DLL frame.\n"
+    if call_m2 not in text:
+        block += call_m2 + "\n"
+    if call_m3 not in text:
+        block += call_m3 + "\n"
+    block += "\n"
+    text = text[:a] + block + text[a:]
 
 LOCAL.write_text(text, encoding="utf-8")
 
@@ -126,11 +161,13 @@ compile_files = [
     r"game\q4bse\Q4FxParser.cpp",
     r"game\q4bse\Q4BSECore.cpp",
     r"game\q4bse\Q4BSEDoom3.cpp",
+    r"game\q4bse\Q4BSEImpactM3.cpp",
 ]
 include_files = [
     r"game\q4bse\Q4FxParser.h",
     r"game\q4bse\Q4BSECore.h",
     r"game\q4bse\Q4BSEDoom3.h",
+    r"game\q4bse\Q4BSEImpactM3.h",
 ]
 
 compile_anchor = '    <ClCompile Include="game\\Game_local.cpp" />'
@@ -151,7 +188,7 @@ for path in include_files:
 
 PROJ.write_text(xml, encoding="utf-8")
 
-print("Q4BSE M1 source integration patch applied.")
+print("Q4BSE source integration patch applied through M3 full-impact runtime.")
 print("Applied two behavior-neutral VS2022 compatibility fixes to idlib/math/Simd.cpp.")
-print("No wrapper DLL and no Phrozo dependency were added.")
+print("No wrapper DLL, forwarding DLL, vtable patch, binary detour, or Phrozo dependency was added.")
 print("Build neo\\game.vcxproj -> Release | Win32.")
