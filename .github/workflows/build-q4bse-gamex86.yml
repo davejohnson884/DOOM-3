@@ -37,18 +37,10 @@ jobs:
         run: |
           python q4bse_port/apply_q4bse_m1.py "$env:GITHUB_WORKSPACE"
 
-      - name: Build TypeInfo Win32 Release
-        shell: cmd
-        run: >-
-          msbuild neo\doom.sln /t:TypeInfo /m
-          /p:Configuration=Release /p:Platform=Win32
-          /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
-          /verbosity:minimal
-
       - name: Build Game Win32 Release
         shell: cmd
         run: >-
-          msbuild neo\doom.sln /t:Game /m
+          msbuild neo\game.vcxproj /m
           /p:Configuration=Release /p:Platform=Win32
           /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
           /verbosity:minimal
