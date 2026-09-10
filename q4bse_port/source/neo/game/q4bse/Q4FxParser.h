@@ -71,10 +71,17 @@ public:
 std::string DumpEffect(const Effect& fx);
 const Segment* FindSegment(const Effect& fx, const char* name);
 
-// Shared domain lookup used by both the portable core and the source-integrated
-// M3 runtime. The implementation lives in Q4BSECore.cpp.
-const Domain* FindDomain(const std::vector< std::pair<std::string, Domain> >& block,
-                         const char* property);
+// M3 is intentionally kept independent from Q4BSECore.h.  Give that translation
+// unit a header-only domain lookup without introducing a second non-template
+// overload that ADL would make ambiguous with its local helper.
+template< class DomainContainer >
+inline const Domain* FindDomain(const DomainContainer& block, const char* property) {
+    if (!property) return NULL;
+    for (size_t i = 0; i < block.size(); ++i) {
+        if (block[i].first == property) return &block[i].second;
+    }
+    return NULL;
+}
 
 } // namespace q4bse
 
