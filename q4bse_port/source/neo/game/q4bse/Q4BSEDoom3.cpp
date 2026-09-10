@@ -2,6 +2,31 @@
 #pragma hdrstop
 
 #include "../Game_local.h"
+
+// Doom 3's legacy headers intentionally macro-wrap several CRT names and the
+// Win32 headers expose min/max macros.  This translation unit also embeds the
+// portable Q4BSE parser, which uses the modern C++ standard library.  Drop the
+// legacy macros here, after the Doom headers are parsed, so they cannot rewrite
+// declarations inside <string>/<cstdio> or Range::min/Range::max.
+#ifdef snprintf
+#undef snprintf
+#endif
+#ifdef _snprintf
+#undef _snprintf
+#endif
+#ifdef vsnprintf
+#undef vsnprintf
+#endif
+#ifdef _vsnprintf
+#undef _vsnprintf
+#endif
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
 #include "Q4FxParser.h"
 #include "Q4BSECore.h"
 #include "Q4BSEDoom3.h"
