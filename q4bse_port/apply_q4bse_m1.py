@@ -15,10 +15,11 @@ NEO = ROOT / "neo"
 GAME = NEO / "game"
 LOCAL = GAME / "Game_local.cpp"
 PROJ = NEO / "game.vcxproj"
+SIMD = NEO / "idlib" / "math" / "Simd.cpp"
 SRC = HERE / "source" / "neo" / "game" / "q4bse"
 DST = GAME / "q4bse"
 
-for p in (LOCAL, PROJ):
+for p in (LOCAL, PROJ, SIMD):
     if not p.exists():
         raise SystemExit(f"ERROR: {p} not found. Pass the root of a clean id-Software/DOOM-3 GPL tree.")
 
@@ -30,10 +31,29 @@ for src in SRC.iterdir():
     if src.is_file():
         shutil.copy2(src, DST / src.name)
 
-for p in (LOCAL, PROJ):
+for p in (LOCAL, PROJ, SIMD):
     bak = p.with_suffix(p.suffix + ".q4bse_m1.bak")
     if not bak.exists():
         shutil.copy2(p, bak)
+
+# Modern MSVC compatibility for two 2011-era adjacent string/macro tokens.
+# Old source: "text "S_COLOR_RED"X".  VS2022 treats that as a user-defined
+# literal suffix.  Adding whitespace preserves the original C/C++ string
+# concatenation semantics and changes no runtime behavior.
+simd_text = SIMD.read_text(encoding="utf-8-sig")
+old_memcpy = 'idLib::common->Printf( "   simd->Memcpy() "S_COLOR_RED"X\\n" );'
+new_memcpy = 'idLib::common->Printf( "   simd->Memcpy() " S_COLOR_RED "X\\n" );'
+old_memset = 'idLib::common->Printf( "   simd->Memset() "S_COLOR_RED"X\\n" );'
+new_memset = 'idLib::common->Printf( "   simd->Memset() " S_COLOR_RED "X\\n" );'
+if old_memcpy in simd_text:
+    simd_text = simd_text.replace(old_memcpy, new_memcpy, 1)
+elif new_memcpy not in simd_text:
+    raise SystemExit("ERROR: Simd.cpp Memcpy compatibility anchor not found")
+if old_memset in simd_text:
+    simd_text = simd_text.replace(old_memset, new_memset, 1)
+elif new_memset not in simd_text:
+    raise SystemExit("ERROR: Simd.cpp Memset compatibility anchor not found")
+SIMD.write_text(simd_text, encoding="utf-8")
 
 text = LOCAL.read_text(encoding="utf-8-sig")
 
@@ -132,5 +152,6 @@ for path in include_files:
 PROJ.write_text(xml, encoding="utf-8")
 
 print("Q4BSE M1 source integration patch applied.")
+print("Applied two behavior-neutral VS2022 compatibility fixes to idlib/math/Simd.cpp.")
 print("No wrapper DLL and no Phrozo dependency were added.")
-print("Build neo\\doom.sln -> Game -> Release | Win32.")
+print("Build neo\\game.vcxproj -> Release | Win32.")
