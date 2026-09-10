@@ -43,6 +43,7 @@ jobs:
           python q4bse_port/apply_q4bse_m1.py "$env:GITHUB_WORKSPACE"
 
       - name: Build Game Win32 Release
+        id: build_game
         shell: powershell
         run: |
           $log = Join-Path $env:GITHUB_WORKSPACE 'msbuild-game.log'
@@ -53,19 +54,43 @@ jobs:
             "/fileLoggerParameters:LogFile=$log;Verbosity=normal"
           $buildExit = $LASTEXITCODE
           if ($buildExit -ne 0) {
-            Write-Host "::group::First compiler/linker errors"
             $errors = Select-String -Path $log -Pattern ':\s*(fatal\s+)?error\s+[A-Z]+\d+' | Select-Object -First 80
             if ($errors) {
-              $errors | ForEach-Object { Write-Host $_.Line }
+              $diag = @($errors | ForEach-Object { $_.Line })
             } else {
-              Write-Host "No standard compiler/linker error pattern matched; printing the end of the MSBuild log."
-              Get-Content $log -Tail 160
+              $diag = @(Get-Content $log -Tail 160)
+            }
+
+            Write-Host "::group::MSBuild diagnostics"
+            foreach ($line in $diag) {
+              Write-Host $line
             }
             Write-Host "::endgroup::"
+
+            "### MSBuild failure diagnostics" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            '```text' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            foreach ($line in ($diag | Select-Object -First 80)) {
+              $safe = $line -replace '%','%25' -replace "`r",'%0D' -replace "`n",'%0A'
+              Write-Host "::error title=MSBuild diagnostic::$safe"
+              $line | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            }
+            '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+            "failed=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
             exit $buildExit
           }
+          "failed=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Upload MSBuild diagnostic log
+        if: failure() && steps.build_game.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-M1-msbuild-failure-log
+          path: msbuild-game.log
+          if-no-files-found: error
 
       - name: Verify gamex86.dll
+        if: success()
         shell: powershell
         run: |
           $dll = Join-Path $env:GITHUB_WORKSPACE 'build\Win32\Release\gamex86.dll'
@@ -74,6 +99,7 @@ jobs:
           Get-FileHash $dll -Algorithm SHA256
 
       - name: Stage test artifact
+        if: success()
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force artifact | Out-Null
@@ -93,6 +119,7 @@ jobs:
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Q4BSE-M1-gamex86
