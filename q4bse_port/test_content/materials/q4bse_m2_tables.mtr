@@ -1,0 +1,17 @@
+// Q4BSE M2 interoperability test data.
+//
+// The M1 test-content pack intentionally did not include the Raven global
+// envelope tables because M1 parsed, but did not execute, motion envelopes.
+// M2 resolves envelope names through Doom 3's normal DECL_TABLE path, matching
+// the rvEnvParms mechanism recovered in Justin Marshall's Quake4BSE work.
+//
+// This Exp_X2 curve is the shared id/Raven-era definition present in the
+// Enemy Territory: Quake Wars SDK tables.mtr.  Keep it as declaration data;
+// do not replace table evaluation in the runtime with a hard-coded x*x shortcut.
+
+table exp_x2 {
+    clamp {
+        .01, .0225, .04, .0625, .09, .1225, .16, .2025, .25,
+        .3025, .36, .4226, .49, .5625, .64, .7225, .81, .9025, 1
+    }
+}
