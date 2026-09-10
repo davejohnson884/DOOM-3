@@ -42,6 +42,11 @@ jobs:
         run: |
           python q4bse_port/apply_q4bse_m1.py "$env:GITHUB_WORKSPACE"
 
+      - name: Overlay full M3 HyperBlaster impact runtime
+        shell: powershell
+        run: |
+          python q4bse_port/apply_q4bse_m3_overlay.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         id: build_game
         shell: powershell
@@ -85,7 +90,7 @@ jobs:
         if: failure() && steps.build_game.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-M1-msbuild-failure-log
+          name: Q4BSE-M3-msbuild-failure-log
           path: msbuild-game.log
           if-no-files-found: error
 
@@ -105,23 +110,23 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE M1 SOURCE-INTEGRATED TEST
-          =================================
+          Q4BSE M3 SOURCE-INTEGRATED HYPERBLASTER IMPACT TEST
+          ===================================================
           This gamex86.dll is built from id-Software/DOOM-3 Game source with Q4BSE code compiled in.
           No wrapper DLL, no Phrozo DLL, no vtable patching.
 
-          Quake 4 content is intentionally NOT stored in this public repository.
-          Put the private q4bse_m1_test_content.pk4 beside this DLL in a clean Doom 3 mod folder.
+          Use the private Raven HyperBlaster test content plus exp_x2 table content.
 
           Console after map load:
             q4bse_status
-            q4bse_m1_flash
+            q4bse_m2_probe
+            q4bse_m3_impact
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-M1-gamex86
+          name: Q4BSE-M3-gamex86
           path: artifact/
           if-no-files-found: error
