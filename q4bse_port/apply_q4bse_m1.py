@@ -31,6 +31,21 @@ for src in SRC.iterdir():
     if src.is_file():
         shutil.copy2(src, DST / src.name)
 
+# M3 dynamic quads use proper four-corner geometry.  The first M3 draft used
+# the four axis extrema (left/down/right/up), which produces a diamond and
+# halves the authored sprite/oriented surface area.  Patch the copied source
+# before compilation so the retail test DLL gets the correct corners.
+m3_cpp = DST / "Q4BSEImpactM3.cpp"
+if m3_cpp.exists():
+    m3_text = m3_cpp.read_text(encoding="utf-8-sig")
+    old_quad = 'idVec3 points[4] = { worldPos - right, worldPos - up, worldPos + right, worldPos + up };'
+    new_quad = 'idVec3 points[4] = { worldPos - right - up, worldPos - right + up, worldPos + right + up, worldPos + right - up };'
+    hits = m3_text.count(old_quad)
+    if hits != 2:
+        raise SystemExit(f"ERROR: expected 2 M3 quad-geometry anchors, found {hits}")
+    m3_text = m3_text.replace(old_quad, new_quad)
+    m3_cpp.write_text(m3_text, encoding="utf-8")
+
 for p in (LOCAL, PROJ, SIMD):
     bak = p.with_suffix(p.suffix + ".q4bse_m1.bak")
     if not bak.exists():
@@ -190,5 +205,6 @@ PROJ.write_text(xml, encoding="utf-8")
 
 print("Q4BSE source integration patch applied through M3 full-impact runtime.")
 print("Applied two behavior-neutral VS2022 compatibility fixes to idlib/math/Simd.cpp.")
+print("Applied M3 four-corner sprite/oriented geometry correction.")
 print("No wrapper DLL, forwarding DLL, vtable patch, binary detour, or Phrozo dependency was added.")
 print("Build neo\\game.vcxproj -> Release | Win32.")
