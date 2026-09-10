@@ -43,12 +43,27 @@ jobs:
           python q4bse_port/apply_q4bse_m1.py "$env:GITHUB_WORKSPACE"
 
       - name: Build Game Win32 Release
-        shell: cmd
-        run: >-
-          msbuild neo\game.vcxproj /m
-          /p:Configuration=Release /p:Platform=Win32
-          /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
-          /verbosity:minimal
+        shell: powershell
+        run: |
+          $log = Join-Path $env:GITHUB_WORKSPACE 'msbuild-game.log'
+          & msbuild neo\game.vcxproj /m `
+            /p:Configuration=Release /p:Platform=Win32 `
+            /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 `
+            /verbosity:minimal /fileLogger `
+            "/fileLoggerParameters:LogFile=$log;Verbosity=normal"
+          $buildExit = $LASTEXITCODE
+          if ($buildExit -ne 0) {
+            Write-Host "::group::First compiler/linker errors"
+            $errors = Select-String -Path $log -Pattern ':\s*(fatal\s+)?error\s+[A-Z]+\d+' | Select-Object -First 80
+            if ($errors) {
+              $errors | ForEach-Object { Write-Host $_.Line }
+            } else {
+              Write-Host "No standard compiler/linker error pattern matched; printing the end of the MSBuild log."
+              Get-Content $log -Tail 160
+            }
+            Write-Host "::endgroup::"
+            exit $buildExit
+          }
 
       - name: Verify gamex86.dll
         shell: powershell
