@@ -36,6 +36,11 @@ patch_exact(Path("neo/idlib/math/Simd.cpp"), [
      'idLib::common->Printf( "   simd->Memset() " S_COLOR_RED "X\\n" );'),
 ])
 
+patch_exact(Path("neo/game/gamesys/SysCmds.cpp"), [
+    ('gameLocal.Printf( "\\\"%s\\\"  "S_COLOR_WHITE"\\\"%s\\\"\\n", kv->GetKey().c_str(), kv->GetValue().c_str() );',
+     'gameLocal.Printf( "\\\"%s\\\"  " S_COLOR_WHITE "\\\"%s\\\"\\n", kv->GetKey().c_str(), kv->GetValue().c_str() );'),
+])
+
 # Modern GitHub checkout paths contain "DOOM-3". The original TypeInfo helper
 # searched for the substring "Doom" and truncated the working directory there,
 # which turns D:\\a\\DOOM-3\\DOOM-3 into D:\\a\\DOOM. Keep the original fallback
