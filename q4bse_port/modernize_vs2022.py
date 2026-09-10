@@ -41,6 +41,15 @@ patch_exact(Path("neo/game/gamesys/SysCmds.cpp"), [
      'gameLocal.Printf( "\\\"%s\\\"  " S_COLOR_WHITE "\\\"%s\\\"\\n", kv->GetKey().c_str(), kv->GetValue().c_str() );'),
 ])
 
+# TypeInfo intentionally turns private/protected into public so its generated
+# inspection code can reach arbitrary game members. Modern MSVC's STL rejects
+# keyword macros unless this explicit compatibility opt-in is present. Access
+# specifiers do not affect object layout, so this preserves the original hack.
+patch_exact(Path("neo/game/gamesys/TypeInfo.cpp"), [
+    ('// This is real evil but allows the code to inspect arbitrary class variables.\n#define private\t\tpublic\n#define protected\tpublic',
+     '// This is real evil but allows the code to inspect arbitrary class variables.\n#define _ALLOW_KEYWORD_MACROS\n#define private\t\tpublic\n#define protected\tpublic'),
+])
+
 # Modern GitHub checkout paths contain "DOOM-3". The original TypeInfo helper
 # searched for the substring "Doom" and truncated the working directory there,
 # which turns D:\\a\\DOOM-3\\DOOM-3 into D:\\a\\DOOM. Keep the original fallback
