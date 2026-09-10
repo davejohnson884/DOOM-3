@@ -36,6 +36,11 @@ patch_exact(Path("neo/idlib/math/Simd.cpp"), [
      'idLib::common->Printf( "   simd->Memset() " S_COLOR_RED "X\\n" );'),
 ])
 
+# Modern GitHub checkout paths contain "DOOM-3". The original TypeInfo helper
+# searched for the substring "Doom" and truncated the working directory there,
+# which turns D:\\a\\DOOM-3\\DOOM-3 into D:\\a\\DOOM. Keep the original fallback
+# for old local layouts, but first accept the current working directory when it
+# actually contains the source-code folder.
 patch_exact(Path("neo/TypeInfo/main.cpp"), [
     ('idStr( "../"SOURCE_CODE_BASE_FOLDER"/" )',
      'idStr( "../" SOURCE_CODE_BASE_FOLDER "/" )'),
@@ -43,6 +48,8 @@ patch_exact(Path("neo/TypeInfo/main.cpp"), [
      '"../" SOURCE_CODE_BASE_FOLDER "/game"'),
     ('"../"SOURCE_CODE_BASE_FOLDER"/game/gamesys/GameTypeInfo.h"',
      '"../" SOURCE_CODE_BASE_FOLDER "/game/gamesys/GameTypeInfo.h"'),
+    ('\tint i = idStr::FindText( cwd, CD_BASEDIR, false );\n\tif ( i >= 0 ) {\n\t\tcwd[i + strlen( CD_BASEDIR )] = \'\\0\';\n\t}\n\n\treturn cwd;',
+     '\tidStr sourceRoot = cwd;\n\tsourceRoot += "\\\\";\n\tsourceRoot += SOURCE_CODE_BASE_FOLDER;\n\tif ( _access( sourceRoot.c_str(), 0 ) == 0 ) {\n\t\treturn cwd;\n\t}\n\n\tint i = idStr::FindText( cwd, CD_BASEDIR, false );\n\tif ( i >= 0 ) {\n\t\tcwd[i + strlen( CD_BASEDIR )] = \'\\0\';\n\t}\n\n\treturn cwd;'),
 ])
 
 patch_exact(Path("neo/TypeInfo/TypeInfoGen.cpp"), [
@@ -58,5 +65,16 @@ patch_exact(Path("neo/framework/FileSystem.cpp"), [
     ('static_cast<idFile_Permanent*>(bgl->f)->GetFilePtr()->_file',
      '_fileno( static_cast<idFile_Permanent*>(bgl->f)->GetFilePtr() )'),
 ])
+
+# The GPL source release does not include the retail Doom 3 base assets, but the
+# legacy TypeInfo build helper initializes idFileSystem and insists that a
+# base/default.cfg exists before it scans the C++ tree. An empty build-only stub
+# is sufficient; it is created in the CI working tree and is never committed.
+base_dir = ROOT / "base"
+base_dir.mkdir(exist_ok=True)
+default_cfg = base_dir / "default.cfg"
+if not default_cfg.exists():
+    default_cfg.write_text("// Build-only stub for the GPL TypeInfo generator.\n", encoding="ascii")
+    print(f"VS2022 compatibility: created build-only {default_cfg}")
 
 print("VS2022 compatibility pass complete.")
