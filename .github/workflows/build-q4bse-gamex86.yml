@@ -100,6 +100,19 @@ jobs:
         run: |
           python q4bse_port/finalize_q4bse_projectile_visual_ownership.py "$env:GITHUB_WORKSPACE"
 
+      - name: Prepare Weapon BSE include
+        shell: powershell
+        run: |
+          $path = Join-Path $env:GITHUB_WORKSPACE 'neo\game\Weapon.cpp'
+          $text = [IO.File]::ReadAllText($path)
+          $inc = '#include "q4bse/Q4BSEImpactM3.h"'
+          if (-not $text.Contains($inc)) {
+            $anchor = '#include "Game_local.h"'
+            if (-not $text.Contains($anchor)) { throw "Game_local.h include anchor not found in Weapon.cpp" }
+            $text = $text.Replace($anchor, "$anchor`r`n$inc")
+            [IO.File]::WriteAllText($path, $text)
+          }
+
       - name: Extend BSE decals, projectile fly FX, and weapon muzzle FX
         shell: powershell
         run: |
