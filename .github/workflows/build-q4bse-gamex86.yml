@@ -90,6 +90,11 @@ jobs:
         run: |
           python q4bse_port/fix_q4bse_gameplay_compile.py "$env:GITHUB_WORKSPACE"
 
+      - name: Source-integrate Q4 viewmodel presentation
+        shell: powershell
+        run: |
+          python q4bse_port/apply_q4_viewmodel_presentation.py "$env:GITHUB_WORKSPACE"
+
       - name: Wire plasma gun to Raven impact test
         shell: powershell
         run: |
@@ -158,17 +163,26 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V11 PLASMA GAMEPLAY TEST
-          ==============================
-          This is one normal Doom 3 GPL gamex86.dll with the Raven FX parser/runtime compiled in.
+          Q4BSE V12 SINGLE-DLL PRESENTATION + GAMEPLAY TEST
+          =================================================
+          This is one normal Doom 3 GPL gamex86.dll.  It contains both the
+          source-integrated Raven FX parser/runtime and the Quake 4 first-person
+          presentation transform that previously required the V106/V110 DLL chain.
 
-          Gameplay runtime:
+          Q4 weapon presentation:
+            - Doom 3 movement bob/gameplay/aim stay authoritative
+            - def_viewStyle selects Raven viewoffset/viewangles data
+            - foreshorten scales only the local forward axis, matching Raven
+            - presentation is applied only to the renderer submission
+            - no proxy DLL, inner runtime DLL, retail vtable patch or RenderWorld hook
+
+          BSE gameplay runtime:
             - parsed Raven FX declarations are cached/shared
             - each projectile impact creates an independent live BSE instance
             - simultaneous impacts can finish independently
             - generic Raven fx_impact* spawnarg selection remains enabled
 
-          V11 stock plasma validation override:
+          Temporary stock-plasma validation override is still present:
             projectile_plasmablast -> effects/weapons/hyperblaster/impact_default.fx
             projectile_plasmablast_mp -> effects/weapons/hyperblaster/impact_default.fx
 
