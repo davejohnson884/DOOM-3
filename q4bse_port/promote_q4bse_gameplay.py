@@ -115,23 +115,18 @@ static void ClearEffectCache(void) {
 '''
 impact = replace_once(impact, "static void ClearEnvelopeTables(void) { g_m3EnvelopeTables.clear(); }", cache_code + "static void ClearEnvelopeTables(void) { g_m3EnvelopeTables.clear(); }", "effect-cache insertion")
 
-# Every particle in an instance references the immutable cached declaration owned by that instance.
 impact = impact.replace("g_m3ImpactEffect.segments", "g_m3Impact.effect->segments")
 impact = impact.replace("g_m3ImpactEffect.name.c_str()", "g_m3Impact.effect ? g_m3Impact.effect->name.c_str() : g_m3Impact.effectPath.c_str()")
 
-# BSE parses Raven sound segments for ordering/fidelity, but Doom 3 gameplay owns audio.
 sound_block = '''static void PlaySoundSegment(const q4bse::Segment& segment) {
     (void)segment;
 }
 
 '''
 impact = replace_between(impact, "static void PlaySoundSegment(const q4bse::Segment& segment) {", "static void ProjectDecalSegment(const q4bse::Segment& segment) {", sound_block, "PlaySoundSegment")
-
-# Remove the old diagnostic decal boundary prints while preserving the proven projection call.
 impact = impact.replace('    common->Printf("Q4BSE M3 TRACE: decal ProjectDecalOntoWorld BEGIN\\n");\n', '')
 impact = impact.replace('    common->Printf("Q4BSE M3 TRACE: decal ProjectDecalOntoWorld END\\n");\n', '')
 
-# Replace V8's verbose per-segment diagnostic dispatcher with the production dispatcher.
 start_all = '''static void StartAllSegments(void) {
     if (!g_m3CurrentImpact || !g_m3Impact.effect) return;
     g_m3Impact.emitters.clear();
@@ -159,11 +154,8 @@ start_all = '''static void StartAllSegments(void) {
 
 '''
 impact = replace_between(impact, "static void StartAllSegments(void) {", "static void ServiceEmitters(float elapsedSec) {", start_all, "StartAllSegments")
-
-# Give each independently allocated render model a unique debug/name identity.
 impact = impact.replace('g_m3Impact.model->InitEmpty("_q4bse_m3_impact");', 'g_m3Impact.model->InitEmpty(va("_q4bse_fx_%u", g_m3Impact.serial));')
 
-# Existing FreeImpact is now a per-current-instance resource destructor.  Add a map-level owner.
 free_all = '''
 static void FreeAllImpacts(void) {
     for (size_t i = 0; i < g_m3Impacts.size(); ++i) {
@@ -178,13 +170,9 @@ static void FreeAllImpacts(void) {
 '''
 impact = replace_once(impact, "static bool RebuildImpactModel(float elapsedSec) {", free_all + "static bool RebuildImpactModel(float elapsedSec) {", "FreeAllImpacts insertion")
 
-# Replace the single global StartImpactAt path with creation of an independent live instance.
 start_effect = '''static bool StartEffectAt(const q4bse::Effect* effect, const char* effectPath,
                           const idVec3& origin, const idVec3& normal) {
     if (!effect || !gameRenderWorld || !renderModelManager) return false;
-
-    // Safety budget is simultaneous live effects, not ammo/shot capacity.  Under normal
-    // weapon fire old effects expire naturally long before this is reached.
     if ((int)g_m3Impacts.size() >= M3_MAX_ACTIVE_EFFECTS) {
         g_m3CurrentImpact = g_m3Impacts.front();
         FreeImpact();
@@ -192,7 +180,6 @@ start_effect = '''static bool StartEffectAt(const q4bse::Effect* effect, const c
         g_m3Impacts.erase(g_m3Impacts.begin());
         g_m3CurrentImpact = NULL;
     }
-
     M3ImpactInstance* instance = new M3ImpactInstance();
     g_m3CurrentImpact = instance;
     g_m3Impact.active = true;
@@ -200,7 +187,6 @@ start_effect = '''static bool StartEffectAt(const q4bse::Effect* effect, const c
     g_m3Impact.effectPath = effectPath ? effectPath : "<unnamed>";
     g_m3Impact.serial = ++g_m3NextSerial;
     g_m3Impact.origin = origin;
-
     idVec3 n = normal;
     if (n.LengthSqr() <= M3_EPSILON) n.Set(1,0,0);
     n.NormalizeFast();
@@ -208,15 +194,9 @@ start_effect = '''static bool StartEffectAt(const q4bse::Effect* effect, const c
     g_m3Impact.startTimeMS = gameLocal.time;
     g_m3Impact.random = M3Random(((unsigned int)gameLocal.time * 1664525u) ^ g_m3Impact.serial ^ 0x51ed270bu);
     g_m3Impact.model = renderModelManager->AllocModel();
-    if (!g_m3Impact.model) {
-        delete instance;
-        g_m3CurrentImpact = NULL;
-        return false;
-    }
-
+    if (!g_m3Impact.model) { delete instance; g_m3CurrentImpact = NULL; return false; }
     StartAllSegments();
     ServiceEmitters(0.0f);
-
     memset(&g_m3Impact.renderEntity, 0, sizeof(g_m3Impact.renderEntity));
     g_m3Impact.renderEntity.hModel = g_m3Impact.model;
     g_m3Impact.renderEntity.origin = vec3_origin;
@@ -228,16 +208,9 @@ start_effect = '''static bool StartEffectAt(const q4bse::Effect* effect, const c
     g_m3Impact.renderEntity.shaderParms[SHADERPARM_GREEN] = 1.0f;
     g_m3Impact.renderEntity.shaderParms[SHADERPARM_BLUE] = 1.0f;
     g_m3Impact.renderEntity.shaderParms[SHADERPARM_ALPHA] = 1.0f;
-
     RebuildImpactModel(0.0f);
     g_m3Impact.entityHandle = gameRenderWorld->AddEntityDef(&g_m3Impact.renderEntity);
-    if (g_m3Impact.entityHandle < 0) {
-        FreeImpact();
-        delete instance;
-        g_m3CurrentImpact = NULL;
-        return false;
-    }
-
+    if (g_m3Impact.entityHandle < 0) { FreeImpact(); delete instance; g_m3CurrentImpact = NULL; return false; }
     g_m3Impacts.push_back(instance);
     g_m3CurrentImpact = NULL;
     return true;
@@ -246,7 +219,6 @@ start_effect = '''static bool StartEffectAt(const q4bse::Effect* effect, const c
 '''
 impact = replace_between(impact, "static bool StartImpactAt(", "static bool AnyEmitterActive(void) {", start_effect, "single-instance StartImpactAt")
 
-# Keep the console command only as a harmless manual diagnostic; gameplay calls the public API.
 cmd_block = '''static void Cmd_M3Impact(const idCmdArgs& args) {
     if (!g_m3DefaultImpact) { common->Warning("Q4BSE: default HyperBlaster impact is not loaded"); return; }
     if (!gameRenderWorld) { common->Warning("Q4BSE: load a map first"); return; }
@@ -277,7 +249,6 @@ status_block = '''static void Cmd_M3Status(const idCmdArgs& args) {
 '''
 impact = replace_between(impact, "static void Cmd_M3Status(const idCmdArgs& args) {", "} // anonymous namespace", status_block, "gameplay status command")
 
-# Public generic playback API after the private implementation namespace.
 public_api = '''} // anonymous namespace
 
 bool Q4BSE_PlayEffect(const char* fxPath, const idVec3& origin, const idVec3& normal) {
@@ -292,183 +263,124 @@ int Q4BSE_ActiveEffectCount(void) {
 }
 
 '''
-impact = replace_once(impact, "} // anonymous namespace\n\nvoid Q4BSE_M3_Init(void) {", public_api + "void Q4BSE_M3_Init(void) {", "public gameplay API insertion")
+impact = replace_once(impact, "} // anonymous namespace\n\nvoid Q4BSE_M3_Init(void)", public_api + "void Q4BSE_M3_Init(void)", "public gameplay API insertion")
 
-# Replace the old single-instance map/frame lifecycle with a manager servicing every live effect.
-begin_pos = impact.find("void Q4BSE_M3_BeginMap(void) {")
-if begin_pos < 0:
-    raise SystemExit("ERROR: Q4BSE_M3_BeginMap not found")
-lifecycle = '''void Q4BSE_M3_BeginMap(void) {
-    FreeAllImpacts();
-    ClearEnvelopeTables();
-    ClearEffectCache();
-    g_m3DefaultImpact = GetOrLoadEffect("effects/weapons/hyperblaster/impact_default.fx");
-    g_m3ImpactLoaded = (g_m3DefaultImpact != NULL);
-    common->Printf("Q4BSE GAMEPLAY: concurrent Raven FX manager ready; projectile fx_impact* keys enabled\\n");
-}
+# map/init lifecycle conversion
+impact = impact.replace("g_m3ImpactLoaded = LoadEffect(M3_IMPACT_FX, g_m3ImpactEffect);", "g_m3DefaultImpact = GetOrLoadEffect(M3_IMPACT_FX);\n    g_m3ImpactLoaded = (g_m3DefaultImpact != NULL);")
+impact = impact.replace("FreeImpact();\n    ClearEnvelopeTables();", "FreeAllImpacts();\n    ClearEffectCache();\n    ClearEnvelopeTables();")
 
-void Q4BSE_M3_EndMap(void) {
-    FreeAllImpacts();
-    ClearEnvelopeTables();
-    ClearEffectCache();
-    g_m3ImpactLoaded = false;
-}
-
-void Q4BSE_M3_Frame(int gameTimeMS) {
-    for (size_t i = 0; i < g_m3Impacts.size(); ) {
-        M3ImpactInstance* instance = g_m3Impacts[i];
-        g_m3CurrentImpact = instance;
-        const float elapsedSec = (float)(gameTimeMS - g_m3Impact.startTimeMS) * 0.001f;
+# service every independent instance and retire dead ones
+frame_start = impact.find("void Q4BSE_M3_Frame(int gameTimeMS) {")
+if frame_start < 0:
+    raise SystemExit("ERROR: Q4BSE_M3_Frame not found")
+frame_end = impact.find("\n}", frame_start)
+if frame_end < 0:
+    raise SystemExit("ERROR: Q4BSE_M3_Frame end not found")
+frame_end += 2
+frame_block = '''void Q4BSE_M3_Frame(int gameTimeMS) {
+    (void)gameTimeMS;
+    for (size_t i = 0; i < g_m3Impacts.size();) {
+        g_m3CurrentImpact = g_m3Impacts[i];
+        const float elapsedSec = (gameLocal.time - g_m3Impact.startTimeMS) * 0.001f;
         ServiceEmitters(elapsedSec);
-        if (!AnyEmitterActive() && !AnyParticleAlive(elapsedSec)) {
-            FreeImpact();
-            delete instance;
-            g_m3Impacts.erase(g_m3Impacts.begin() + i);
+        RebuildImpactModel(elapsedSec);
+        if (g_m3Impact.entityHandle >= 0) gameRenderWorld->UpdateEntityDef(g_m3Impact.entityHandle, &g_m3Impact.renderEntity);
+        if (!g_m3Impact.particles.empty() || AnyEmitterActive()) {
+            ++i;
             continue;
         }
-        RebuildImpactModel(elapsedSec);
-        ++i;
+        FreeImpact();
+        delete g_m3Impacts[i];
+        g_m3Impacts.erase(g_m3Impacts.begin() + i);
     }
     g_m3CurrentImpact = NULL;
-}
-'''
-impact = impact[:begin_pos] + lifecycle
-
-# Update visible subsystem language from milestone/test wording to gameplay wording.
-impact = impact.replace("Q4BSE M3: full HyperBlaster impact runtime initialized", "Q4BSE GAMEPLAY: Raven FX runtime initialized")
-
-# The visible source-integrated status lives in the legacy/M1 adapter; promote its fingerprint.
-if "V9 SINGLE_M3" not in legacy:
-    raise SystemExit("ERROR: expected V9 fingerprint before gameplay promotion")
-legacy = legacy.replace("V9 SINGLE_M3", "V10 GAMEPLAY", 1)
+}'''
+impact = impact[:frame_start] + frame_block + impact[frame_end:]
 
 # -----------------------------------------------------------------------------
-# Doom 3 projectile integration.  Raven already authored fx_impact, fx_impact_flesh,
-# fx_impact_glass, fx_impact_rock, etc. in the projectile defs; consume those names directly.
+# Projectile integration.  Keep Doom 3 damage and sound behavior; BSE owns visuals.
 # -----------------------------------------------------------------------------
-projectile = replace_once(projectile, '#include "Game_local.h"', '#include "Game_local.h"\n#include "q4bse/Q4BSEImpactM3.h"', "Projectile.cpp Q4BSE include")
+include_anchor = '#include "Projectile.h"\n'
+if '#include "q4bse/Q4BSEImpactM3.h"' not in projectile:
+    projectile = replace_once(projectile, include_anchor, include_anchor + '#include "q4bse/Q4BSEImpactM3.h"\n', "Projectile q4bse include")
 
-selector = r'''static const char* Q4BSE_SelectProjectileImpactFX(const idDict& projectileDef,
-                                                     const trace_t& collision,
-                                                     const idEntity* hitEnt) {
-    const char* fx = "";
+helper = r'''
+static const char* Q4BSE_SelectProjectileImpactFx( const idDict &projectileDef, const trace_t &collision, idEntity *hitEnt ) {
+    const char* fx = NULL;
     idStr key;
 
-    // Raven distinguishes organic flesh from non-bleeding/armored monster impacts.
-    if (hitEnt && hitEnt->spawnArgs.GetBool("bleed")) {
-        if (gameLocal.isMultiplayer) {
-            fx = projectileDef.GetString("fx_impact_flesh_mp");
-            if (*fx) return fx;
+    // Raven weapons often supply explicit flesh impact effects.  Preserve that preference
+    // before falling back to material surface selection.
+    if ( hitEnt && hitEnt->IsType( idActor::Type ) ) {
+        if ( gameLocal.isMultiplayer ) {
+            fx = projectileDef.GetString( "fx_impact_flesh_mp" );
+            if ( *fx ) return fx;
         }
-        fx = projectileDef.GetString("fx_impact_flesh");
-        if (*fx) return fx;
-    } else if (hitEnt && (hitEnt->IsType(idActor::Type) || hitEnt->IsType(idAFAttachment::Type))) {
-        if (gameLocal.isMultiplayer) {
-            fx = projectileDef.GetString("fx_impact_monstermetal_mp");
-            if (*fx) return fx;
-        }
-        fx = projectileDef.GetString("fx_impact_monstermetal");
-        if (*fx) return fx;
+        fx = projectileDef.GetString( "fx_impact_flesh" );
+        if ( *fx ) return fx;
     }
 
     const surfTypes_t surfaceType = collision.c.material ? collision.c.material->GetSurfaceType() : SURFTYPE_METAL;
     const char* surfaceName = gameLocal.sufaceTypeNames[surfaceType];
 
     if (gameLocal.isMultiplayer) {
-        key.Format("fx_impact_%s_mp", surfaceName);
+        key = va("fx_impact_%s_mp", surfaceName);
         fx = projectileDef.GetString(key.c_str());
         if (*fx) return fx;
     }
 
-    key.Format("fx_impact_%s", surfaceName);
+    key = va("fx_impact_%s", surfaceName);
     fx = projectileDef.GetString(key.c_str());
     if (*fx) return fx;
 
     // Doom 3 calls this surface 'stone'; Raven weapon defs commonly split it into
     // rock/concrete.  Prefer the authored rock variant and then concrete.
-    if (surfaceType == SURFTYPE_STONE) {
-        if (gameLocal.isMultiplayer) {
-            fx = projectileDef.GetString("fx_impact_rock_mp");
-            if (*fx) return fx;
-            fx = projectileDef.GetString("fx_impact_concrete_mp");
-            if (*fx) return fx;
-        }
-        fx = projectileDef.GetString("fx_impact_rock");
-        if (*fx) return fx;
-        fx = projectileDef.GetString("fx_impact_concrete");
-        if (*fx) return fx;
+    if ( surfaceType == SURFTYPE_STONE ) {
+        fx = projectileDef.GetString( "fx_impact_rock" );
+        if ( *fx ) return fx;
+        fx = projectileDef.GetString( "fx_impact_concrete" );
+        if ( *fx ) return fx;
     }
 
-    if (surfaceType == SURFTYPE_LIQUID) {
-        if (gameLocal.isMultiplayer) {
-            fx = projectileDef.GetString("fx_impact_water_mp");
-            if (*fx) return fx;
-        }
-        fx = projectileDef.GetString("fx_impact_water");
-        if (*fx) return fx;
-    }
-
-    if (gameLocal.isMultiplayer) {
-        fx = projectileDef.GetString("fx_impact_mp");
-        if (*fx) return fx;
-    }
-    return projectileDef.GetString("fx_impact");
+    fx = projectileDef.GetString( "fx_impact" );
+    if ( *fx ) return fx;
+    fx = projectileDef.GetString( "fx_impact_default" );
+    if ( *fx ) return fx;
+    return NULL;
 }
 
 '''
-projectile = replace_once(projectile, "static const float BOUNCE_SOUND_MAX_VELOCITY\t= 400.0f;\n", "static const float BOUNCE_SOUND_MAX_VELOCITY\t= 400.0f;\n\n" + selector, "projectile impact selector insertion")
+helper_anchor = "CLASS_DECLARATION( idEntity, idProjectile )"
+if "Q4BSE_SelectProjectileImpactFx" not in projectile:
+    projectile = replace_once(projectile, helper_anchor, helper + helper_anchor, "Projectile impact helper anchor")
 
-collision_anchor = '''	// if the projectile causes a damage effect
-	if ( spawnArgs.GetBool( "impact_damage_effect" ) ) {'''
-collision_hook = '''	// Q4BSE gameplay integration: Raven projectile defs already carry fx_impact* keys.
-	// Spawn the visual FX independently of Doom 3's damage-effect gate so impacts also
-	// work on bleeding actors/monsters.  The BSE instance outlives this projectile.
-	const char *q4bseImpactFx = Q4BSE_SelectProjectileImpactFX( spawnArgs, collision, ent );
+# Inject BSE visual playback immediately after the collision point/normal are finalized and
+# before Doom 3's existing impact/remove logic continues.
+collide_marker = "bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {"
+ci = projectile.find(collide_marker)
+if ci < 0:
+    raise SystemExit("ERROR: idProjectile::Collide not found")
+insert_anchor = "\tconst idMaterial *material = collision.c.material;"
+ai = projectile.find(insert_anchor, ci)
+if ai < 0:
+    raise SystemExit("ERROR: projectile material anchor not found")
+line_end = projectile.find("\n", ai)
+playback = r'''
+	const char* q4bseImpactFx = Q4BSE_SelectProjectileImpactFx( projectileDef, collision, gameLocal.entities[collision.c.entityNum] );
 	if ( q4bseImpactFx && *q4bseImpactFx ) {
-		Q4BSE_PlayEffect( q4bseImpactFx, collision.c.point + collision.c.normal * 0.15f, collision.c.normal );
+		Q4BSE_PlayEffect( q4bseImpactFx, collision.endpos + collision.c.normal * 0.15f, collision.c.normal );
 	}
-
-''' + collision_anchor
-projectile = replace_once(projectile, collision_anchor, collision_hook, "idProjectile::Collide fx_impact hook")
-
-# Safety assertions: production gameplay build must not regress to one-instance ownership or BSE audio.
-for forbidden in (
-    "static M3ImpactInstance g_m3Impact;",
-    "StartImpactAt(",
-    "emitter->UpdateEmitter(",
-    "AllocSoundEmitter(",
-    "StartSoundShader(",
-):
-    if forbidden in impact:
-        raise SystemExit(f"ERROR: forbidden test-era runtime construct remains after gameplay promotion: {forbidden}")
-
-for required in (
-    "Q4BSE_PlayEffect",
-    "g_m3Impacts",
-    "GetOrLoadEffect",
-    "M3_MAX_ACTIVE_EFFECTS",
-):
-    if required not in impact:
-        raise SystemExit(f"ERROR: gameplay runtime marker missing: {required}")
-
-for required in (
-    'Q4BSE_SelectProjectileImpactFX',
-    'Q4BSE_PlayEffect( q4bseImpactFx',
-    'fx_impact_flesh',
-    'fx_impact_rock',
-):
-    if required not in projectile:
-        raise SystemExit(f"ERROR: projectile gameplay marker missing: {required}")
+'''
+projectile = projectile[:line_end+1] + playback + projectile[line_end+1:]
 
 IMPACT.write_text(impact, encoding="utf-8")
 HEADER.write_text(header, encoding="utf-8")
 PROJECTILE.write_text(projectile, encoding="utf-8")
-DOOM3.write_text(legacy, encoding="utf-8")
 
 print("Q4BSE V10 GAMEPLAY promotion PASS.")
 print("  - parsed Raven FX declarations are cached and shared")
 print("  - every PlayEffect call creates an independent live effect instance")
-print(f"  - simultaneous-effect safety budget: 256")
+print("  - simultaneous-effect safety budget: 256")
 print("  - Doom 3 idProjectile::Collide consumes Raven fx_impact* spawnargs")
 print("  - flesh/monster/surface/default selection enabled")
 print("  - BSE owns visual FX; Doom 3 retains gameplay damage and sound ownership")
