@@ -47,6 +47,11 @@ jobs:
         run: |
           python q4bse_port/apply_q4bse_m3_overlay.py "$env:GITHUB_WORKSPACE"
 
+      - name: Enforce single M3 command owner
+        shell: powershell
+        run: |
+          python q4bse_port/finalize_q4bse_m3_single_owner.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         id: build_game
         shell: powershell
