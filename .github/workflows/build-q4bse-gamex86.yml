@@ -95,10 +95,10 @@ jobs:
         run: |
           python q4bse_port/apply_q4_viewmodel_presentation.py "$env:GITHUB_WORKSPACE"
 
-      - name: Wire plasma gun to Raven impact test
+      - name: Finalize generic Raven projectile visual ownership
         shell: powershell
         run: |
-          python q4bse_port/wire_plasma_impact_test.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/finalize_q4bse_projectile_visual_ownership.py "$env:GITHUB_WORKSPACE"
 
       - name: Build Game Win32 Release
         id: build_game
@@ -163,35 +163,28 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V12 SINGLE-DLL PRESENTATION + GAMEPLAY TEST
-          =================================================
-          This is one normal Doom 3 GPL gamex86.dll.  It contains both the
-          source-integrated Raven FX parser/runtime and the Quake 4 first-person
-          presentation transform that previously required the V106/V110 DLL chain.
+          Q4BSE V13 REAL Q4 PROJECTILE IMPACT + PRESENTATION
+          ==================================================
+          One normal Doom 3 GPL gamex86.dll containing both source-integrated
+          Quake 4 weapon presentation and the Raven BSE parser/runtime.
 
-          Q4 weapon presentation:
+          Presentation:
             - Doom 3 movement bob/gameplay/aim stay authoritative
             - def_viewStyle selects Raven viewoffset/viewangles data
-            - foreshorten scales only the local forward axis, matching Raven
-            - presentation is applied only to the renderer submission
-            - no proxy DLL, inner runtime DLL, retail vtable patch or RenderWorld hook
+            - foreshorten scales only the local forward axis
+            - no proxy/inner runtime/vtable patch/RenderWorld hook
 
-          BSE gameplay runtime:
-            - parsed Raven FX declarations are cached/shared
-            - each projectile impact creates an independent live BSE instance
-            - simultaneous impacts can finish independently
-            - generic Raven fx_impact* spawnarg selection remains enabled
+          Raven projectile impacts:
+            - idProjectile::Collide resolves Raven fx_impact* spawnargs
+            - selected BSE effect uses the real collision point + surface normal
+            - BSE-owned world impacts suppress Doom 3 AddDefaultDamageEffect
+            - BSE-owned projectiles suppress model_detonate/fallback impact PRTs
+            - actor blood/wound layering remains Doom 3-owned
+            - optional snd_q4bse_impact remains Doom 3-owned for non-bleeding hits
+            - stock Doom 3 projectile_plasmablast is NOT hardwired to HyperBlaster anymore
 
-          Temporary stock-plasma validation override is still present:
-            projectile_plasmablast -> effects/weapons/hyperblaster/impact_default.fx
-            projectile_plasmablast_mp -> effects/weapons/hyperblaster/impact_default.fx
-
-          For those plasma bolts only, Doom 3's native world-impact decal and
-          model_detonate/fallback particle are suppressed so the Raven impact can be
-          evaluated by itself. Actor blood/wound effects remain enabled. Doom 3 keeps
-          damage, physics, and snd_explode ownership.
-
-          q4bse_m3_impact remains only as a manual diagnostic command.
+          Damage, projectile physics, AI, lifetime and explosion-light handling remain
+          Doom 3-owned. q4bse_m3_impact remains only a manual diagnostic command.
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
