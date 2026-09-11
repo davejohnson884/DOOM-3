@@ -29,23 +29,50 @@ if b'q4bse_m3_impact' not in source or b'Q4BSE M3' not in source:
 
 DEST.write_bytes(source)
 
-# Retail Doom 3's idSoundEmitterLocal::UpdateEmitter requires a non-null
-# soundShaderParms_t pointer.  The first M3 pass passed NULL and retail 1.3.1
-# correctly aborted with "idSoundEmitterLocal::UpdateEmitter: NULL parms".
-# Keep the Raven sound segment path intact, but provide neutral emitter parms.
+# Do not manually own a raw idSoundEmitter for the M3 test sound.  Retail Doom 3
+# 1.3.1 rejects a NULL UpdateEmitter parms pointer even though the public interface
+# comment says NULL is acceptable.  Run #24 changed our explicit call to non-NULL,
+# but the retail test still reached the same fatal path after the sound was started.
+# Route M3 sound playback through idEntity::StartSoundShader instead: that is Doom 3's
+# normal game-side ownership path and idEntity::UpdateSound always passes &refSound.parms.
+# This milestone intentionally trades exact impact-position spatialization for a safe,
+# owned emitter; a dedicated transient spatial sound proxy can be added after M3 visuals
+# are stable.
 impact_text = IMPACT.read_text(encoding="utf-8-sig")
-old_sound = "    emitter->UpdateEmitter(g_m3Impact.origin, player ? player->GetListenerId() : 0, NULL);"
-new_sound = (
-    "    soundShaderParms_t emitterParms;\n"
-    "    memset(&emitterParms, 0, sizeof(emitterParms));\n"
-    "    emitter->UpdateEmitter(g_m3Impact.origin, player ? player->GetListenerId() : 0, &emitterParms);"
-)
-hits = impact_text.count(old_sound)
-if hits != 1:
-    raise SystemExit(f"ERROR: expected exactly one unsafe M3 sound UpdateEmitter anchor, found {hits}")
-impact_text = impact_text.replace(old_sound, new_sound, 1)
+sound_start_marker = "static void PlaySoundSegment(const q4bse::Segment& segment) {"
+sound_end_marker = "static void ProjectDecalSegment(const q4bse::Segment& segment) {"
+sound_start = impact_text.find(sound_start_marker)
+sound_end = impact_text.find(sound_end_marker, sound_start + 1)
+if sound_start < 0 or sound_end < 0 or sound_end <= sound_start:
+    raise SystemExit("ERROR: could not locate M3 PlaySoundSegment block for retail-safe replacement")
+
+new_sound = '''static void PlaySoundSegment(const q4bse::Segment& segment) {
+    if (!gameSoundWorld || !declManager || segment.soundShader.empty()) return;
+    const idSoundShader* shader = declManager->FindSound(segment.soundShader.c_str(), false);
+    if (!shader) { common->Warning("Q4BSE M3: sound shader not found: %s", segment.soundShader.c_str()); return; }
+    idPlayer* player = gameLocal.GetLocalPlayer();
+    if (!player) { common->Warning("Q4BSE M3: no local player available for sound segment %s", segment.soundShader.c_str()); return; }
+    int soundLengthMS = 0;
+    if (!player->StartSoundShader(shader, SCHANNEL_ANY, 0, false, &soundLengthMS)) {
+        common->Warning("Q4BSE M3: StartSoundShader failed for %s", segment.soundShader.c_str());
+        return;
+    }
+    common->Printf("Q4BSE M3: sound %s started through owned idEntity emitter (%d ms)\\n",
+                   segment.soundShader.c_str(), soundLengthMS);
+}
+
+'''
+impact_text = impact_text[:sound_start] + new_sound + impact_text[sound_end:]
+
+# Hard safety check: the M3 implementation must contain no direct raw UpdateEmitter
+# calls after this replacement.  If one is added later, fail CI rather than shipping
+# another retail crash.
+if "->UpdateEmitter(" in impact_text:
+    raise SystemExit("ERROR: unsafe direct UpdateEmitter call remains in Q4BSEImpactM3.cpp")
+
 IMPACT.write_text(impact_text, encoding="utf-8")
 
 print(f"Q4BSE M3 overlay applied: {len(source)} bytes -> {DEST}")
-print("Q4BSE M3 retail sound crashfix applied: UpdateEmitter now receives valid neutral parms.")
+print("Q4BSE M3 retail sound crashfix v2 applied: sound now uses idEntity::StartSoundShader ownership.")
+print("Q4BSE M3 sound safety check PASS: no direct UpdateEmitter calls remain in impact runtime.")
 print("Architecture remains one ordinary source-built gamex86.dll; no wrapper or binary hook.")
