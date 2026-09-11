@@ -57,6 +57,11 @@ jobs:
         run: |
           python q4bse_port/promote_q4bse_gameplay.py "$env:GITHUB_WORKSPACE"
 
+      - name: Apply V10 gameplay compile correction
+        shell: powershell
+        run: |
+          python q4bse_port/fix_q4bse_gameplay_compile.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         id: build_game
         shell: powershell
