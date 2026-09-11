@@ -100,6 +100,11 @@ jobs:
         run: |
           python q4bse_port/finalize_q4bse_projectile_visual_ownership.py "$env:GITHUB_WORKSPACE"
 
+      - name: Extend BSE decals, projectile fly FX, and weapon muzzle FX
+        shell: powershell
+        run: |
+          python q4bse_port/extend_q4bse_attached_fx.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         id: build_game
         shell: powershell
@@ -163,10 +168,10 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V13 REAL Q4 PROJECTILE IMPACT + PRESENTATION
-          ==================================================
-          One normal Doom 3 GPL gamex86.dll containing both source-integrated
-          Quake 4 weapon presentation and the Raven BSE parser/runtime.
+          Q4BSE V14 FULL HYPERBLASTER BSE FIRING CHAIN + PRESENTATION
+          ==========================================================
+          One normal Doom 3 GPL gamex86.dll containing source-integrated
+          Quake 4 weapon presentation and Raven BSE parser/runtime.
 
           Presentation:
             - Doom 3 movement bob/gameplay/aim stay authoritative
@@ -174,17 +179,19 @@ jobs:
             - foreshorten scales only the local forward axis
             - no proxy/inner runtime/vtable patch/RenderWorld hook
 
-          Raven projectile impacts:
-            - idProjectile::Collide resolves Raven fx_impact* spawnargs
-            - selected BSE effect uses the real collision point + surface normal
-            - BSE-owned world impacts suppress Doom 3 AddDefaultDamageEffect
-            - BSE-owned projectiles suppress model_detonate/fallback impact PRTs
+          Raven BSE:
+            - projectile fx_impact* uses real collision point + normal
+            - Raven decal segments project through Doom 3's native world decal helper
+            - projectile fx_fly can stay attached to the moving projectile
+            - locked/constant HyperBlaster fly spawners persist with the projectile
+            - weapon fx_muzzleflash plays from the declared view flash joint
+            - muzzle joint is transformed through the same Q4 viewStyle/foreshorten presentation
             - actor blood/wound layering remains Doom 3-owned
-            - optional snd_q4bse_impact remains Doom 3-owned for non-bleeding hits
-            - stock Doom 3 projectile_plasmablast is NOT hardwired to HyperBlaster anymore
+            - impact audio remains Doom 3-owned
+            - no Doom 3 replacement particle is required for muzzle/fly/impact
 
-          Damage, projectile physics, AI, lifetime and explosion-light handling remain
-          Doom 3-owned. q4bse_m3_impact remains only a manual diagnostic command.
+          Stock Doom 3 projectile_plasmablast is not hardwired to HyperBlaster.
+          q4bse_m3_impact remains only a manual diagnostic command.
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
