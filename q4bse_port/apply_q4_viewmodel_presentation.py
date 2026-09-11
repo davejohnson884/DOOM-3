@@ -2,7 +2,7 @@
 """Source-integrate the proven Quake 4 viewmodel presentation transform.
 
 This replaces the old proxy/inner-DLL RenderWorld hook with normal Doom 3 GPL
-source.  It deliberately changes only the first-person renderEntity at submit
+source. It deliberately changes only the first-person renderEntity at submit
 time: Doom 3 weapon bob, gameplay physics, projectile aim and script state keep
 their authoritative transforms.
 
@@ -21,7 +21,7 @@ import sys
 
 MARKER = "Q4 source-integrated viewmodel presentation"
 
-OLD = r'''\t// present the model
+OLD = '''\t// present the model
 \tif ( showViewModel ) {
 \t\tPresent();
 \t} else {
@@ -29,10 +29,10 @@ OLD = r'''\t// present the model
 \t}
 '''
 
-NEW = r'''\t// Q4 source-integrated viewmodel presentation.
+NEW = '''\t// Q4 source-integrated viewmodel presentation.
 \t//
 \t// The old V106/V110 chain intercepted AddEntityDef/UpdateEntityDef and
-\t// changed only the submitted first-person renderEntity.  Keep that exact
+\t// changed only the submitted first-person renderEntity. Keep that exact
 \t// ownership here: Doom 3 bob/gameplay/aim remain untouched, while Raven's
 \t// data-driven viewStyle and ForeshortenAxis are applied to presentation.
 \tbool q4PresentationActive = false;
@@ -70,7 +70,7 @@ NEW = r'''\t// Q4 source-integrated viewmodel presentation.
 \t\tFreeModelDef();
 \t}
 
-\t// Restore the authoritative Doom 3 render transform after submission.  The
+\t// Restore the authoritative Doom 3 render transform after submission. The
 \t// renderer owns a copy of the transformed entity; subsequent gameplay and
 \t// joint calculations therefore continue from the unmodified Doom 3 pose.
 \tif ( q4PresentationActive ) {
