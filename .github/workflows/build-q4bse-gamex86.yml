@@ -52,6 +52,11 @@ jobs:
         run: |
           python q4bse_port/finalize_q4bse_m3_single_owner.py "$env:GITHUB_WORKSPACE"
 
+      - name: Promote Q4BSE to gameplay subsystem
+        shell: powershell
+        run: |
+          python q4bse_port/promote_q4bse_gameplay.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         id: build_game
         shell: powershell
@@ -115,17 +120,24 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE M3 SOURCE-INTEGRATED HYPERBLASTER IMPACT TEST
-          ===================================================
-          This gamex86.dll is built from id-Software/DOOM-3 Game source with Q4BSE code compiled in.
-          No wrapper DLL, no Phrozo DLL, no vtable patching.
+          Q4BSE V10 GAMEPLAY BUILD
+          ========================
+          This is one normal Doom 3 GPL gamex86.dll with the Raven FX parser/runtime compiled in.
 
-          Use the private Raven HyperBlaster test content plus exp_x2 table content.
+          V10 changes ownership from one diagnostic impact to a concurrent live-effect manager.
+          Doom 3 idProjectile::Collide now consumes Raven projectile DEF keys such as:
+            fx_impact
+            fx_impact_flesh
+            fx_impact_monstermetal
+            fx_impact_glass
+            fx_impact_rock / fx_impact_concrete
+            fx_impact_water
 
-          Console after map load:
-            q4bse_status
-            q4bse_m2_probe
-            q4bse_m3_impact
+          Parsed FX declarations are cached/shared. Each projectile hit gets an independent
+          live BSE instance and previous impacts continue until their authored lifetime ends.
+          BSE owns visual FX. Doom 3 retains damage and sound ownership.
+
+          q4bse_m3_impact remains only as a manual diagnostic command.
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
