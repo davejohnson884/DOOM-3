@@ -90,6 +90,11 @@ jobs:
         run: |
           python q4bse_port/fix_q4bse_gameplay_compile.py "$env:GITHUB_WORKSPACE"
 
+      - name: Wire plasma gun to Raven impact test
+        shell: powershell
+        run: |
+          python q4bse_port/wire_plasma_impact_test.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         id: build_game
         shell: powershell
@@ -153,22 +158,24 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V10 GAMEPLAY BUILD
-          ========================
+          Q4BSE V11 PLASMA GAMEPLAY TEST
+          ==============================
           This is one normal Doom 3 GPL gamex86.dll with the Raven FX parser/runtime compiled in.
 
-          V10 changes ownership from one diagnostic impact to a concurrent live-effect manager.
-          Doom 3 idProjectile::Collide now consumes Raven projectile DEF keys such as:
-            fx_impact
-            fx_impact_flesh
-            fx_impact_monstermetal
-            fx_impact_glass
-            fx_impact_rock / fx_impact_concrete
-            fx_impact_water
+          Gameplay runtime:
+            - parsed Raven FX declarations are cached/shared
+            - each projectile impact creates an independent live BSE instance
+            - simultaneous impacts can finish independently
+            - generic Raven fx_impact* spawnarg selection remains enabled
 
-          Parsed FX declarations are cached/shared. Each projectile hit gets an independent
-          live BSE instance and previous impacts continue until their authored lifetime ends.
-          BSE owns visual FX. Doom 3 retains damage and sound ownership.
+          V11 stock plasma validation override:
+            projectile_plasmablast -> effects/weapons/hyperblaster/impact_default.fx
+            projectile_plasmablast_mp -> effects/weapons/hyperblaster/impact_default.fx
+
+          For those plasma bolts only, Doom 3's native world-impact decal and
+          model_detonate/fallback particle are suppressed so the Raven impact can be
+          evaluated by itself. Actor blood/wound effects remain enabled. Doom 3 keeps
+          damage, physics, and snd_explode ownership.
 
           q4bse_m3_impact remains only as a manual diagnostic command.
           "@ | Set-Content artifact\README_TEST.txt
