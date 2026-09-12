@@ -9,6 +9,7 @@ on:
       - 'q4bse_port/**'
       - 'q4bse_v16_muzzle_lock_gui.py'
       - 'q4bse_v17_q4_decal_life_bridge.py'
+      - 'q4bse_v18_grenade_launcher_bse.py'
       - '.github/workflows/build-q4bse-gamex86.yml'
 
 permissions:
@@ -29,78 +30,61 @@ jobs:
       - name: Show compiler environment
         shell: powershell
         run: |
-          Write-Host "MSBuild:"
           msbuild -version
           Write-Host "Repo: $env:GITHUB_REPOSITORY"
           Write-Host "Commit: $env:GITHUB_SHA"
 
       - name: Modernize legacy source tokens for VS2022
         shell: powershell
-        run: |
-          python q4bse_port/modernize_vs2022.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/modernize_vs2022.py "$env:GITHUB_WORKSPACE"
 
       - name: Apply source-integrated Q4BSE patch
         shell: powershell
-        run: |
-          python q4bse_port/apply_q4bse_m1.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/apply_q4bse_m1.py "$env:GITHUB_WORKSPACE"
 
-      - name: Overlay full M3 HyperBlaster impact runtime
+      - name: Overlay full M3 BSE runtime
         shell: powershell
-        run: |
-          python q4bse_port/apply_q4bse_m3_overlay.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/apply_q4bse_m3_overlay.py "$env:GITHUB_WORKSPACE"
 
       - name: Enforce single M3 command owner
         shell: powershell
-        run: |
-          python q4bse_port/finalize_q4bse_m3_single_owner.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/finalize_q4bse_m3_single_owner.py "$env:GITHUB_WORKSPACE"
 
       - name: Prepare Doom 3 projectile gameplay anchors
         shell: powershell
         run: |
           $path = Join-Path $env:GITHUB_WORKSPACE 'neo\game\Projectile.cpp'
           $text = [IO.File]::ReadAllText($path)
-
           $q4 = '#include "q4bse/Q4BSEImpactM3.h"'
           if (-not $text.Contains($q4)) {
             $anchor = '#include "Game_local.h"'
-            if (-not $text.Contains($anchor)) {
-              throw "Game_local.h include anchor not found in Projectile.cpp"
-            }
+            if (-not $text.Contains($anchor)) { throw "Game_local.h include anchor not found in Projectile.cpp" }
             $text = $text.Replace($anchor, "$anchor`r`n$q4")
           }
-
           $materialAnchor = "`tconst idMaterial *material = collision.c.material;"
           if (-not $text.Contains($materialAnchor)) {
             $axisAnchor = "`tSetAxis( collision.endAxis );"
-            if (-not $text.Contains($axisAnchor)) {
-              throw "Collide SetAxis anchor not found in Projectile.cpp"
-            }
+            if (-not $text.Contains($axisAnchor)) { throw "Collide SetAxis anchor not found in Projectile.cpp" }
             $compat = "$axisAnchor`r`n`r`n`tconst idDict &projectileDef = spawnArgs;`r`n$materialAnchor"
             $text = $text.Replace($axisAnchor, $compat)
           }
-
           [IO.File]::WriteAllText($path, $text)
-          Write-Host "Projectile gameplay include/material anchors prepared."
 
       - name: Promote Q4BSE to gameplay subsystem
         shell: powershell
-        run: |
-          python q4bse_port/promote_q4bse_gameplay.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/promote_q4bse_gameplay.py "$env:GITHUB_WORKSPACE"
 
-      - name: Apply V10 gameplay compile correction
+      - name: Apply gameplay compile correction
         shell: powershell
-        run: |
-          python q4bse_port/fix_q4bse_gameplay_compile.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/fix_q4bse_gameplay_compile.py "$env:GITHUB_WORKSPACE"
 
       - name: Source-integrate Q4 viewmodel presentation
         shell: powershell
-        run: |
-          python q4bse_port/apply_q4_viewmodel_presentation.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/apply_q4_viewmodel_presentation.py "$env:GITHUB_WORKSPACE"
 
       - name: Finalize generic Raven projectile visual ownership
         shell: powershell
-        run: |
-          python q4bse_port/finalize_q4bse_projectile_visual_ownership.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/finalize_q4bse_projectile_visual_ownership.py "$env:GITHUB_WORKSPACE"
 
       - name: Prepare Weapon BSE include
         shell: powershell
@@ -117,68 +101,26 @@ jobs:
 
       - name: Extend BSE decals, projectile fly FX, and weapon muzzle FX
         shell: powershell
-        run: |
-          python q4bse_port/extend_q4bse_attached_fx.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/extend_q4bse_attached_fx.py "$env:GITHUB_WORKSPACE"
 
       - name: Lock muzzle FX and restore Q4 GUI light
         shell: powershell
-        run: |
-          python q4bse_v16_muzzle_lock_gui.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_v16_muzzle_lock_gui.py "$env:GITHUB_WORKSPACE"
 
       - name: Bridge Q4 DecalLife to Doom 3 projected decals
         shell: powershell
-        run: |
-          python q4bse_v17_q4_decal_life_bridge.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_v17_q4_decal_life_bridge.py "$env:GITHUB_WORKSPACE"
+
+      - name: Extend BSE for Quake 4 grenade launcher
+        shell: powershell
+        run: python q4bse_v18_grenade_launcher_bse.py "$env:GITHUB_WORKSPACE"
 
       - name: Build Game Win32 Release
-        id: build_game
         shell: powershell
         run: |
-          $log = Join-Path $env:GITHUB_WORKSPACE 'msbuild-game.log'
-          & msbuild neo\game.vcxproj /m `
-            /p:Configuration=Release /p:Platform=Win32 `
-            /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 `
-            /verbosity:minimal /fileLogger `
-            "/fileLoggerParameters:LogFile=$log;Verbosity=normal"
-          $buildExit = $LASTEXITCODE
-          if ($buildExit -ne 0) {
-            $errors = Select-String -Path $log -Pattern ':\s*(fatal\s+)?error\s+[A-Z]+\d+' | Select-Object -First 80
-            if ($errors) {
-              $diag = @($errors | ForEach-Object { $_.Line })
-            } else {
-              $diag = @(Get-Content $log -Tail 160)
-            }
-
-            Write-Host "::group::MSBuild diagnostics"
-            foreach ($line in $diag) {
-              Write-Host $line
-            }
-            Write-Host "::endgroup::"
-
-            "### MSBuild failure diagnostics" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-            '```text' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-            foreach ($line in ($diag | Select-Object -First 80)) {
-              $safe = $line -replace '%','%25' -replace "`r",'%0D' -replace "`n",'%0A'
-              Write-Host "::error title=MSBuild diagnostic::$safe"
-              $line | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-            }
-            '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-
-            "failed=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-            exit $buildExit
-          }
-          "failed=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-
-      - name: Upload MSBuild diagnostic log
-        if: failure() && steps.build_game.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Q4BSE-M3-msbuild-failure-log
-          path: msbuild-game.log
-          if-no-files-found: error
+          msbuild neo\game.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /verbosity:minimal
 
       - name: Verify gamex86.dll
-        if: success()
         shell: powershell
         run: |
           $dll = Join-Path $env:GITHUB_WORKSPACE 'build\Win32\Release\gamex86.dll'
@@ -187,36 +129,23 @@ jobs:
           Get-FileHash $dll -Algorithm SHA256
 
       - name: Stage test artifact
-        if: success()
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V17 HYPERBLASTER FINAL DECAL-LIFE BRIDGE
-          =================================================
-          One normal Doom 3 GPL gamex86.dll containing source-integrated
-          Quake 4 weapon presentation and Raven BSE parser/runtime.
-
-          Presentation / BSE:
-            - validated Q4 viewStyle/foreshorten weapon presentation
-            - Raven muzzle FX locked to moving view weapon
-            - Raven projectile fly FX attached to moving projectile
-            - Raven impact FX uses true collision point/normal
-            - Q4 GUI light semantics preserved
-            - HyperBlaster blaster_wall_mark3 is translated into three native
-              Doom 3 projected decals with Q4-equivalent independent lifetimes:
-                hot1   = hold 1.25 s, fade 1.25 s
-                hot2   = hold 2.50 s, fade 2.50 s
-                scorch = hold 8.8889 s, fade 1.1111 s
-            - no renderer/exe patch required; Game DLL remains the only binary mod
-
-          Stock Doom 3 projectile_plasmablast is not hardwired to HyperBlaster.
-          q4bse_m3_impact remains only a manual diagnostic command.
+          Q4BSE V18 GRENADE LAUNCHER BSE PASS
+          ====================================
+          Includes all validated V17 HyperBlaster behavior plus generic Raven
+          BSE support required by the Quake 4 grenade launcher:
+            - delayed muzzle/explosion segments
+            - Raven grenade muzzle FX attachment at the barrel joint
+            - Q4 fuse detonation selection: ground material impact vs midair detonate
+            - BSE decal rotation through Doom 3 native world decal projection
+            - grenade bounces remain non-detonating
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Q4BSE-M3-gamex86
