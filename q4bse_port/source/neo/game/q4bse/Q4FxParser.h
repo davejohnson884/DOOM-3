@@ -19,10 +19,11 @@ struct Domain {
     std::vector<float> values;
     bool surface;
     bool relative;
+    bool useEndOrigin;
     std::string envelope;
     bool hasEnvelopeOffset;
     float envelopeOffset;
-    Domain() : surface(false), relative(false), hasEnvelopeOffset(false), envelopeOffset(0.0f) {}
+    Domain() : surface(false), relative(false), useEndOrigin(false), hasEnvelopeOffset(false), envelopeOffset(0.0f) {}
 };
 
 struct ParticleTemplate {
