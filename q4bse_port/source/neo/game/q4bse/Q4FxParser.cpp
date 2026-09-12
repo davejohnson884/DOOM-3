@@ -123,6 +123,10 @@ static Domain ParseDomain(TokenStream& ts) {
     while (!ts.eof() && ts.peek() != "}") {
         if (ts.peek() == "surface") { ts.get(); d.surface = true; continue; }
         if (ts.peek() == "relative") { ts.get(); d.relative = true; continue; }
+        // Raven spawn domains may opt into the effect's end-origin coordinate.
+        // Preserve the modifier even when a caller does not currently supply an
+        // end origin; rejecting it used to make the entire muzzleflash.fx fail.
+        if (ts.peek() == "useEndOrigin") { ts.get(); d.useEndOrigin = true; continue; }
         if (ts.peek() == "envelope") {
             ts.get();
             d.envelope = ts.get();
@@ -214,6 +218,7 @@ static std::string DomainStr(const Domain& d) {
     os << ")";
     if (d.surface) os << " surface";
     if (d.relative) os << " relative";
+    if (d.useEndOrigin) os << " useEndOrigin";
     if (!d.envelope.empty()) {
         os << " envelope=" << d.envelope;
         if (d.hasEnvelopeOffset) os << " offset=" << d.envelopeOffset;
