@@ -11,6 +11,7 @@ on:
       - 'q4bse_v17_q4_decal_life_bridge.py'
       - 'q4bse_v18_grenade_launcher_bse.py'
       - 'q4bse_v19_nailgun_bse.py'
+      - 'q4bse_v19b_nailgun_domain_count.py'
       - '.github/workflows/build-q4bse-gamex86.yml'
 
 permissions:
@@ -120,6 +121,10 @@ jobs:
         shell: powershell
         run: python q4bse_v19_nailgun_bse.py "$env:GITHUB_WORKSPACE"
 
+      - name: Parse Raven Nailgun envelope count modifiers
+        shell: powershell
+        run: python q4bse_v19b_nailgun_domain_count.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         shell: powershell
         run: |
@@ -149,6 +154,7 @@ jobs:
             - local acceleration sampling
             - collision detaches trail tails while killing the projectile-attached core
             - exact dual steam-nozzle fx_exhaust playback from the view weapon
+            - Raven envelope count modifiers accepted for glass/electronics FX
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
