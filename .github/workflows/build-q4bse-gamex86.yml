@@ -10,7 +10,7 @@ on:
       - 'q4bse_v16_muzzle_lock_gui.py'
       - 'q4bse_v17_q4_decal_life_bridge.py'
       - 'q4bse_v18_grenade_launcher_bse.py'
-      - 'q4bse_v18a_nailgun_safe.py'
+      - 'q4bse_v18b_nailgun_gui_ammo_track.py'
       - '.github/workflows/build-q4bse-gamex86.yml'
 
 permissions:
@@ -116,9 +116,9 @@ jobs:
         shell: powershell
         run: python q4bse_v18_grenade_launcher_bse.py "$env:GITHUB_WORKSPACE"
 
-      - name: Add surgical Nailgun persist and dual exhaust support
+      - name: Add opt-in native Nailgun GUI ammo tracking
         shell: powershell
-        run: python q4bse_v18a_nailgun_safe.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_v18b_nailgun_gui_ammo_track.py "$env:GITHUB_WORKSPACE"
 
       - name: Build Game Win32 Release
         shell: powershell
@@ -139,14 +139,13 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V18A NAILGUN SAFE
-          =======================
-          Exact validated V18 cumulative path plus ONLY:
-            - Raven persist particles retain birth-world transforms for projectile smoke wakes
-            - persist tail survives projectile removal until natural expiry
-            - fx_exhaust plays from the two declared Nailgun steam joints through V16 attachment math
-          No viewmodel presentation or foreshorten changes.
-          No HyperBlaster or Grenade Launcher semantic changes.
+          Q4BSE V18B NAILGUN NATIVE GUI TRACK
+          ===================================
+          Exact validated V18 cumulative path plus ONLY opt-in native idWeapon GUI-light ammo tracking:
+            - glightAmmoTrack follows ammo-bar vertical level
+            - glightColor / glightEmptyColor drive native light color
+          HyperBlaster and weapons without glightAmmoTrack remain unchanged.
+          No V18A Nailgun persist/exhaust patch is applied.
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
