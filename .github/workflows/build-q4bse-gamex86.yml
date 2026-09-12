@@ -11,6 +11,7 @@ on:
       - 'q4bse_v17_q4_decal_life_bridge.py'
       - 'q4bse_v18_grenade_launcher_bse.py'
       - 'q4bse_v18b_nailgun_gui_ammo_track.py'
+      - 'q4bse_v18c_machinegun_exact.py'
       - '.github/workflows/build-q4bse-gamex86.yml'
 
 permissions:
@@ -120,6 +121,10 @@ jobs:
         shell: powershell
         run: python q4bse_v18b_nailgun_gui_ammo_track.py "$env:GITHUB_WORKSPACE"
 
+      - name: Add exact Quake 4 Machinegun flashlight and brass
+        shell: powershell
+        run: python q4bse_v18c_machinegun_exact.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         shell: powershell
         run: |
@@ -139,13 +144,14 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V18B NAILGUN NATIVE GUI TRACK
-          ===================================
-          Exact validated V18 cumulative path plus ONLY opt-in native idWeapon GUI-light ammo tracking:
-            - glightAmmoTrack follows ammo-bar vertical level
-            - glightColor / glightEmptyColor drive native light color
-          HyperBlaster and weapons without glightAmmoTrack remain unchanged.
-          No V18A Nailgun persist/exhaust patch is applied.
+          Q4BSE V18C MACHINEGUN EXACT
+          ===========================
+          Exact validated cumulative path through V18B plus opt-in Q4 Machinegun:
+            - dedicated joint_view_flashlight placement for the projected beam
+            - Raven-style eject joint + ejectOffset brass launch
+            - Q4 proportional linear/angular randomization and player velocity
+            - Raven casing visual scale interpolation
+          All new behavior is def-key gated; Nailgun, HyperBlaster and GL stay unchanged.
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
