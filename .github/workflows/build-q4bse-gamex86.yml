@@ -8,6 +8,7 @@ on:
     paths:
       - 'q4bse_port/**'
       - 'q4bse_v16_muzzle_lock_gui.py'
+      - 'q4bse_v17_q4_decal_life_bridge.py'
       - '.github/workflows/build-q4bse-gamex86.yml'
 
 permissions:
@@ -124,6 +125,11 @@ jobs:
         run: |
           python q4bse_v16_muzzle_lock_gui.py "$env:GITHUB_WORKSPACE"
 
+      - name: Bridge Q4 DecalLife to Doom 3 projected decals
+        shell: powershell
+        run: |
+          python q4bse_v17_q4_decal_life_bridge.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         id: build_game
         shell: powershell
@@ -187,26 +193,23 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V16 HYPERBLASTER MUZZLE LOCK + GUI LIGHT
-          ===============================================
+          Q4BSE V17 HYPERBLASTER FINAL DECAL-LIFE BRIDGE
+          =================================================
           One normal Doom 3 GPL gamex86.dll containing source-integrated
           Quake 4 weapon presentation and Raven BSE parser/runtime.
 
-          Presentation:
-            - Doom 3 movement bob/gameplay/aim stay authoritative
-            - def_viewStyle selects Raven viewoffset/viewangles data
-            - foreshorten scales only the local forward axis
-            - no proxy/inner runtime/vtable patch/RenderWorld hook
-
-          Raven BSE:
-            - projectile fx_impact* uses real collision point + normal
-            - projectile fx_fly stays attached to the moving projectile
-            - weapon fx_muzzleflash stays locked to the moving view weapon for its authored lifetime
-            - Q4 joint_view_guiLight / glightRadius / glightOffset are supported
-            - GUI light uses the same Q4 viewStyle/foreshortened presentation space as the weapon
-            - actor blood/wound layering remains Doom 3-owned
-            - impact audio remains Doom 3-owned
-            - no Doom 3 replacement particle is required for muzzle/fly/impact
+          Presentation / BSE:
+            - validated Q4 viewStyle/foreshorten weapon presentation
+            - Raven muzzle FX locked to moving view weapon
+            - Raven projectile fly FX attached to moving projectile
+            - Raven impact FX uses true collision point/normal
+            - Q4 GUI light semantics preserved
+            - HyperBlaster blaster_wall_mark3 is translated into three native
+              Doom 3 projected decals with Q4-equivalent independent lifetimes:
+                hot1   = hold 1.25 s, fade 1.25 s
+                hot2   = hold 2.50 s, fade 2.50 s
+                scorch = hold 8.8889 s, fade 1.1111 s
+            - no renderer/exe patch required; Game DLL remains the only binary mod
 
           Stock Doom 3 projectile_plasmablast is not hardwired to HyperBlaster.
           q4bse_m3_impact remains only a manual diagnostic command.
