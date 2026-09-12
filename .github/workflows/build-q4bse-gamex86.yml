@@ -7,6 +7,7 @@ on:
       - q4bse-port
     paths:
       - 'q4bse_port/**'
+      - 'q4bse_v16_muzzle_lock_gui.py'
       - '.github/workflows/build-q4bse-gamex86.yml'
 
 permissions:
@@ -118,6 +119,11 @@ jobs:
         run: |
           python q4bse_port/extend_q4bse_attached_fx.py "$env:GITHUB_WORKSPACE"
 
+      - name: Lock muzzle FX and restore Q4 GUI light
+        shell: powershell
+        run: |
+          python q4bse_v16_muzzle_lock_gui.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         id: build_game
         shell: powershell
@@ -181,8 +187,8 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V14 FULL HYPERBLASTER BSE FIRING CHAIN + PRESENTATION
-          ==========================================================
+          Q4BSE V16 HYPERBLASTER MUZZLE LOCK + GUI LIGHT
+          ===============================================
           One normal Doom 3 GPL gamex86.dll containing source-integrated
           Quake 4 weapon presentation and Raven BSE parser/runtime.
 
@@ -194,11 +200,10 @@ jobs:
 
           Raven BSE:
             - projectile fx_impact* uses real collision point + normal
-            - Raven decal segments project through Doom 3's native world decal helper
-            - projectile fx_fly can stay attached to the moving projectile
-            - locked/constant HyperBlaster fly spawners persist with the projectile
-            - weapon fx_muzzleflash plays from the declared view flash joint
-            - muzzle joint is transformed through the same Q4 viewStyle/foreshorten presentation
+            - projectile fx_fly stays attached to the moving projectile
+            - weapon fx_muzzleflash stays locked to the moving view weapon for its authored lifetime
+            - Q4 joint_view_guiLight / glightRadius / glightOffset are supported
+            - GUI light uses the same Q4 viewStyle/foreshortened presentation space as the weapon
             - actor blood/wound layering remains Doom 3-owned
             - impact audio remains Doom 3-owned
             - no Doom 3 replacement particle is required for muzzle/fly/impact
