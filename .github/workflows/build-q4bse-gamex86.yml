@@ -10,6 +10,7 @@ on:
       - 'q4bse_v16_muzzle_lock_gui.py'
       - 'q4bse_v17_q4_decal_life_bridge.py'
       - 'q4bse_v18_grenade_launcher_bse.py'
+      - 'q4bse_v19_nailgun_bse.py'
       - '.github/workflows/build-q4bse-gamex86.yml'
 
 permissions:
@@ -115,6 +116,10 @@ jobs:
         shell: powershell
         run: python q4bse_v18_grenade_launcher_bse.py "$env:GITHUB_WORKSPACE"
 
+      - name: Extend BSE for Quake 4 Nailgun
+        shell: powershell
+        run: python q4bse_v19_nailgun_bse.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         shell: powershell
         run: |
@@ -134,15 +139,16 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V18 GRENADE LAUNCHER BSE PASS
-          ====================================
-          Includes all validated V17 HyperBlaster behavior plus generic Raven
-          BSE support required by the Quake 4 grenade launcher:
-            - delayed muzzle/explosion segments
-            - Raven grenade muzzle FX attachment at the barrel joint
-            - Q4 fuse detonation selection: ground material impact vs midair detonate
-            - BSE decal rotation through Doom 3 native world decal projection
-            - grenade bounces remain non-detonating
+          Q4BSE V19 NAILGUN BSE PASS
+          ===========================
+          Cumulative over the validated V18 HyperBlaster + Grenade Launcher runtime.
+          Adds the remaining generic Raven BSE semantics required by Nailgun:
+            - projectile persist trail particles retain their spawn-world transform
+            - Raven motion trail metadata and fragment ribbons
+            - electricity primitive parsing/render compatibility
+            - local acceleration sampling
+            - collision detaches trail tails while killing the projectile-attached core
+            - exact dual steam-nozzle fx_exhaust playback from the view weapon
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
