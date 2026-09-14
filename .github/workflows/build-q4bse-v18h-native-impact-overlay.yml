@@ -1,0 +1,173 @@
+name: Build Q4BSE V18H Native Impact Overlay DLL
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - q4bse-port
+    paths:
+      - 'q4bse_port/**'
+      - 'q4bse_v16_muzzle_lock_gui.py'
+      - 'q4bse_v17_q4_decal_life_bridge.py'
+      - 'q4bse_v18_grenade_launcher_bse.py'
+      - 'q4bse_v18b_nailgun_gui_ammo_track.py'
+      - 'q4bse_v18c_machinegun_exact.py'
+      - 'q4bse_v18d_machinegun_native_lower_gui_light.py'
+      - 'q4bse_v18e_shotgun_joint_muzzle.py'
+      - '.github/workflows/build-q4bse-v18h-native-impact-overlay.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-game-dll:
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Modernize legacy source tokens for VS2022
+        shell: powershell
+        run: python q4bse_port/modernize_vs2022.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply source-integrated Q4BSE patch
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_m1.py "$env:GITHUB_WORKSPACE"
+
+      - name: Overlay full M3 BSE runtime
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_m3_overlay.py "$env:GITHUB_WORKSPACE"
+
+      - name: Enforce single M3 command owner
+        shell: powershell
+        run: python q4bse_port/finalize_q4bse_m3_single_owner.py "$env:GITHUB_WORKSPACE"
+
+      - name: Prepare Doom 3 projectile gameplay anchors
+        shell: powershell
+        run: |
+          $path = Join-Path $env:GITHUB_WORKSPACE 'neo\game\Projectile.cpp'
+          $text = [IO.File]::ReadAllText($path)
+          $q4 = '#include "q4bse/Q4BSEImpactM3.h"'
+          if (-not $text.Contains($q4)) {
+            $anchor = '#include "Game_local.h"'
+            if (-not $text.Contains($anchor)) { throw "Game_local.h include anchor not found in Projectile.cpp" }
+            $text = $text.Replace($anchor, "$anchor`r`n$q4")
+          }
+          $materialAnchor = "`tconst idMaterial *material = collision.c.material;"
+          if (-not $text.Contains($materialAnchor)) {
+            $axisAnchor = "`tSetAxis( collision.endAxis );"
+            if (-not $text.Contains($axisAnchor)) { throw "Collide SetAxis anchor not found in Projectile.cpp" }
+            $compat = "$axisAnchor`r`n`r`n`tconst idDict &projectileDef = spawnArgs;`r`n$materialAnchor"
+            $text = $text.Replace($axisAnchor, $compat)
+          }
+          [IO.File]::WriteAllText($path, $text)
+
+      - name: Promote Q4BSE to gameplay subsystem
+        shell: powershell
+        run: python q4bse_port/promote_q4bse_gameplay.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply gameplay compile correction
+        shell: powershell
+        run: python q4bse_port/fix_q4bse_gameplay_compile.py "$env:GITHUB_WORKSPACE"
+
+      - name: Source-integrate Q4 viewmodel presentation
+        shell: powershell
+        run: python q4bse_port/apply_q4_viewmodel_presentation.py "$env:GITHUB_WORKSPACE"
+
+      - name: Finalize generic Raven projectile visual ownership
+        shell: powershell
+        run: python q4bse_port/finalize_q4bse_projectile_visual_ownership.py "$env:GITHUB_WORKSPACE"
+
+      - name: Prepare Weapon BSE include
+        shell: powershell
+        run: |
+          $path = Join-Path $env:GITHUB_WORKSPACE 'neo\game\Weapon.cpp'
+          $text = [IO.File]::ReadAllText($path)
+          $inc = '#include "q4bse/Q4BSEImpactM3.h"'
+          if (-not $text.Contains($inc)) {
+            $anchor = '#include "Game_local.h"'
+            if (-not $text.Contains($anchor)) { throw "Game_local.h include anchor not found in Weapon.cpp" }
+            $text = $text.Replace($anchor, "$anchor`r`n$inc")
+            [IO.File]::WriteAllText($path, $text)
+          }
+
+      - name: Extend BSE attached FX
+        shell: powershell
+        run: python q4bse_port/extend_q4bse_attached_fx.py "$env:GITHUB_WORKSPACE"
+
+      - name: Lock muzzle FX and restore Q4 GUI light
+        shell: powershell
+        run: python q4bse_v16_muzzle_lock_gui.py "$env:GITHUB_WORKSPACE"
+
+      - name: Bridge Q4 DecalLife
+        shell: powershell
+        run: python q4bse_v17_q4_decal_life_bridge.py "$env:GITHUB_WORKSPACE"
+
+      - name: Extend BSE for Quake 4 grenade launcher
+        shell: powershell
+        run: python q4bse_v18_grenade_launcher_bse.py "$env:GITHUB_WORKSPACE"
+
+      - name: Add native Nailgun GUI ammo tracking
+        shell: powershell
+        run: python q4bse_v18b_nailgun_gui_ammo_track.py "$env:GITHUB_WORKSPACE"
+
+      - name: Add exact Machinegun flashlight and brass
+        shell: powershell
+        run: python q4bse_v18c_machinegun_exact.py "$env:GITHUB_WORKSPACE"
+
+      - name: Add native Machinegun lower GUI light
+        shell: powershell
+        run: python q4bse_v18d_machinegun_native_lower_gui_light.py "$env:GITHUB_WORKSPACE"
+
+      - name: Add V18E animated-joint muzzle follow and generic lowAmmo color
+        shell: powershell
+        run: python q4bse_v18e_shotgun_joint_muzzle.py "$env:GITHUB_WORKSPACE"
+
+      - name: Add V18F Doom 3 surface impact audio bridge
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v18f_surface_audio.py "$env:GITHUB_WORKSPACE"
+
+      - name: Add V18H native impact overlay without changing BSE ownership
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v18h_native_impact_overlay.py "$env:GITHUB_WORKSPACE"
+
+      - name: Build Game Win32 Release
+        shell: powershell
+        run: |
+          msbuild neo\game.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /verbosity:minimal
+
+      - name: Verify gamex86.dll
+        shell: powershell
+        run: |
+          $dll = Join-Path $env:GITHUB_WORKSPACE 'build\Win32\Release\gamex86.dll'
+          if (!(Test-Path $dll)) { throw "gamex86.dll was not produced at $dll" }
+          Get-Item $dll | Format-List FullName,Length,LastWriteTime
+          Get-FileHash $dll -Algorithm SHA256
+
+      - name: Stage artifact
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
+          @"
+          Q4BSE V18H NATIVE IMPACT OVERLAY
+          =================================
+          - BSE projectile ownership is unchanged from the V18F baseline
+          - q4UseD3ImpactPresentation only layers native Doom 3 collision presentation
+          - no q4UseD3ImpactVisuals/V18G ownership override is applied
+          - intended content setup keeps fx_impact* structurally present but routes them to impact_none.fx
+          - Doom 3 owns world decals, surface sounds, smoke/spark, and ricochet presentation
+          - BSE muzzle/fly/runtime remains untouched
+          "@ | Set-Content artifact\README_TEST.txt
+
+      - name: Upload game DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-V18H-Native-Impact-Overlay
+          path: artifact/
+          if-no-files-found: error
