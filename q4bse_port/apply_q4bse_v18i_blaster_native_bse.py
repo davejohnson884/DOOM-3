@@ -49,13 +49,13 @@ bool Q4BSE_AttachEffectToEntity(const char* fxPath, idEntity* entity);'''
 header = replace_once(header, old_api, new_api, 'BSE public API block')
 
 # A transient endpoint is sufficient: useEndOrigin is resolved while the effect's
-# one-shot particles are created in StartAllSegments().
-impact_anchor = '''static bool g_m3Initialized = false;
-static std::vector<M3ImpactInstance*> g_m3Impacts;'''
+# one-shot particles are created in StartAllSegments().  Anchor only on the one
+# stable initialized declaration because V10 gameplay promotion inserts cache and
+# multi-instance globals between it and g_m3Impacts.
+impact_anchor = 'static bool g_m3Initialized = false;'
 impact_new = '''static bool g_m3Initialized = false;
 static bool g_m3UseEndOrigin = false;
-static idVec3 g_m3EndOrigin = vec3_origin;
-static std::vector<M3ImpactInstance*> g_m3Impacts;'''
+static idVec3 g_m3EndOrigin = vec3_origin;'''
 impact = replace_once(impact, impact_anchor, impact_new, 'transient endpoint globals')
 
 # V14 already added localOffset. Resolve Raven's useEndOrigin after normal authored
