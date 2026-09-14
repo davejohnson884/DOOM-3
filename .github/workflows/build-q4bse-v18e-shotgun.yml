@@ -1,4 +1,4 @@
-name: Build Q4BSE V18E Shotgun DLL
+name: Build Q4BSE V18F Surface Audio DLL
 
 on:
   workflow_dispatch:
@@ -128,6 +128,10 @@ jobs:
         shell: powershell
         run: python q4bse_v18e_shotgun_joint_muzzle.py "$env:GITHUB_WORKSPACE"
 
+      - name: Add V18F Doom 3 surface impact audio bridge
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v18f_surface_audio.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         shell: powershell
         run: |
@@ -147,18 +151,19 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V18E SHOTGUN JOINT MUZZLE
+          Q4BSE V18F SURFACE IMPACT AUDIO
           =================================
-          Cumulative through V18D plus:
-            - live one-shot BSE muzzle FX refreshes from current animated flash joint
-            - joint_view_barrel selects native smoke source joint
-            - source-integrated V58/MG lowAmmo amber transform
-            - exact Q4 brass / prior weapon behavior preserved
+          Cumulative through V18E plus:
+            - opt-in BSE impacts can use Doom 3 snd_<surface> audio
+            - bleeding targets can use projectile snd_flesh
+            - no Doom 3 visual impact duplication is re-enabled
+            - legacy snd_q4bse_impact fallback remains intact
+            - exact Q4 brass / GUI / muzzle behavior preserved
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V18E-Shotgun-Joint-Muzzle
+          name: Q4BSE-V18F-Surface-Audio
           path: artifact/
           if-no-files-found: error
