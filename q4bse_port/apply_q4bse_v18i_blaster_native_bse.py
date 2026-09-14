@@ -49,9 +49,7 @@ bool Q4BSE_AttachEffectToEntity(const char* fxPath, idEntity* entity);'''
 header = replace_once(header, old_api, new_api, 'BSE public API block')
 
 # A transient endpoint is sufficient: useEndOrigin is resolved while the effect's
-# one-shot particles are created in StartAllSegments().  Anchor only on the one
-# stable initialized declaration because V10 gameplay promotion inserts cache and
-# multi-instance globals between it and g_m3Impacts.
+# one-shot particles are created in StartAllSegments().
 impact_anchor = 'static bool g_m3Initialized = false;'
 impact_new = '''static bool g_m3Initialized = false;
 static bool g_m3UseEndOrigin = false;
@@ -74,7 +72,7 @@ new_length = '''    const q4bse::Domain* startLength = FindDomain(pt.start, "len
     ApplyRelative(endLength, p.lengthStart, p.lengthEnd);
 
     if (startLength && startLength->useEndOrigin && g_m3UseEndOrigin) {
-        const idVec3 endpointLocal = g_m3Impact.axis.Transpose() * (g_m3EndOrigin - g_m3Impact.origin);
+        const idVec3 endpointLocal = (g_m3EndOrigin - g_m3Impact.origin) * g_m3Impact.axis.Transpose();
         p.lengthStart = endpointLocal - p.localPosition - p.localOffset;
         p.lengthEnd = p.lengthStart;
     }
@@ -82,11 +80,13 @@ new_length = '''    const q4bse::Domain* startLength = FindDomain(pt.start, "len
     if (transformByNormal) {'''
 impact = replace_once(impact, old_length, new_length, 'useEndOrigin length resolution')
 
+# V16 expanded StartEffectAtAxis with persistent/local-transform flags. Insert the
+# endpoint API alongside the already-cumulative public one-shot function.
 old_axis_api = '''bool Q4BSE_PlayEffectAxis(const char* fxPath, const idVec3& origin, const idMat3& axis) {
     if (!g_m3Initialized || !gameRenderWorld || !fxPath || !fxPath[0]) return false;
     M3CachedEffect* cached = GetOrLoadEffect(fxPath);
     if (!cached) return false;
-    return StartEffectAtAxis(&cached->effect, cached->path.c_str(), origin, axis, NULL);
+    return StartEffectAtAxis(&cached->effect, cached->path.c_str(), origin, axis, NULL, false, false);
 }
 
 bool Q4BSE_AttachEffectToEntity(const char* fxPath, idEntity* entity) {'''
@@ -94,7 +94,7 @@ new_axis_api = '''bool Q4BSE_PlayEffectAxis(const char* fxPath, const idVec3& or
     if (!g_m3Initialized || !gameRenderWorld || !fxPath || !fxPath[0]) return false;
     M3CachedEffect* cached = GetOrLoadEffect(fxPath);
     if (!cached) return false;
-    return StartEffectAtAxis(&cached->effect, cached->path.c_str(), origin, axis, NULL);
+    return StartEffectAtAxis(&cached->effect, cached->path.c_str(), origin, axis, NULL, false, false);
 }
 
 bool Q4BSE_PlayEffectBetween(const char* fxPath, const idVec3& origin, const idVec3& endOrigin, const idMat3& axis) {
@@ -104,7 +104,7 @@ bool Q4BSE_PlayEffectBetween(const char* fxPath, const idVec3& origin, const idV
 
     g_m3UseEndOrigin = true;
     g_m3EndOrigin = endOrigin;
-    const bool started = StartEffectAtAxis(&cached->effect, cached->path.c_str(), origin, axis, NULL);
+    const bool started = StartEffectAtAxis(&cached->effect, cached->path.c_str(), origin, axis, NULL, false, false);
     g_m3UseEndOrigin = false;
     g_m3EndOrigin = vec3_origin;
     return started;
@@ -127,13 +127,14 @@ new_muzzle_select = '''\t\tconst bool q4BseChargedShot = projectileEnt && projec
 \t\tif ( q4MuzzleFx && *q4MuzzleFx && flashJointView != INVALID_JOINT ) {'''
 weapon = replace_once(weapon, old_muzzle_select, new_muzzle_select, 'normal/charged muzzle selection')
 
-old_play = '''\t\t\t\tQ4BSE_PlayEffectAxis( q4MuzzleFx, q4FxOrigin, q4FxAxis );
+# V16 changed the actual muzzle play call to the moving-weapon attachment API.
+old_play = '''\t\t\t\tQ4BSE_AttachEffectToEntityTransform( q4MuzzleFx, this, q4FxOrigin, q4FxAxis );
 \t\t\t}
 \t\t}
 \t}
 
 \t// add some to the kick time, incrementally moving repeat firing weapons back'''
-new_play = '''\t\t\t\tQ4BSE_PlayEffectAxis( q4MuzzleFx, q4FxOrigin, q4FxAxis );
+new_play = '''\t\t\t\tQ4BSE_AttachEffectToEntityTransform( q4MuzzleFx, this, q4FxOrigin, q4FxAxis );
 
 \t\t\t\t// Original Q4 Blaster normal fire is a hitscan visualized with
 \t\t\t\t// effects/weapons/blaster/trail.fx. That FX uses useEndOrigin, so
@@ -158,7 +159,7 @@ weapon = replace_once(weapon, old_play, new_play, 'Blaster path playback')
 for required in (
     'Q4BSE_PlayEffectBetween',
     'startLength->useEndOrigin',
-    'g_m3Impact.axis.Transpose()',
+    '* g_m3Impact.axis.Transpose()',
     'projectileEnt->spawnArgs.GetBool( "q4_bse_charged" )',
     'weaponDef->dict.GetString( "fx_chargedflash" )',
     'weaponDef->dict.GetString( "fx_path" )',
