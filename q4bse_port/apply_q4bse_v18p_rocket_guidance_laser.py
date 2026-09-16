@@ -49,8 +49,8 @@ weapon_h = replace_once(
 
 weapon_h = replace_once(
     weapon_h,
-    '''\t// view weapon gui light\n\trenderLight_t\t\t\t\tguiLight;\n\tint\t\t\t\t\t\tguiLightHandle;''',
-    '''\t// view weapon gui light\n\trenderLight_t\t\t\t\tguiLight;\n\tint\t\t\t\t\t\tguiLightHandle;\n\n\t// Q4 V18P: transient manual-guidance designator visuals. These are renderer\n\t// handles only; they are recreated after loads and never alter weapon state.\n\trenderEntity_t\t\t\t\tq4GuideBeam;\n\tint\t\t\t\t\t\tq4GuideBeamHandle;\n\trenderEntity_t\t\t\t\tq4GuideMarker;\n\tint\t\t\t\t\t\tq4GuideMarkerHandle;''',
+    '''\tint\t\t\t\t\t\tguiLightHandle;''',
+    '''\tint\t\t\t\t\t\tguiLightHandle;\n\n\t// Q4 V18P: transient manual-guidance designator visuals. These are renderer\n\t// handles only; they are recreated after loads and never alter weapon state.\n\trenderEntity_t\t\t\t\tq4GuideBeam;\n\tint\t\t\t\t\t\tq4GuideBeamHandle;\n\trenderEntity_t\t\t\t\tq4GuideMarker;\n\tint\t\t\t\t\t\tq4GuideMarkerHandle;''',
     'Weapon.h guide render fields')
 
 weapon_h = replace_once(
