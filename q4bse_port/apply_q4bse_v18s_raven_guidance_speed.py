@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 '''V18S: Raven Quake 4 Rocket Launcher guidance-speed parity.
 
-Runs AFTER V18P + V18Q.  It changes only the already-working manual-guidance
-projectile block.  Normal rockets retain their authored velocity.  While the
-secondary/designator input is held, guided rockets linearly decelerate from the
-authored speed to lockSlowdown * authored speed over lockAccelTime; releasing
-the guide linearly accelerates them back to authored speed over the same slope.
+Runs AFTER V18P + V18Q and changes only the already-working manual-guidance
+projectile block. Normal rockets retain their authored velocity. While the
+secondary/designator input is held, guided rockets linearly decelerate toward
+q4_guide_speed_scale * authored speed over q4_guide_slow_time. Releasing the
+guide linearly accelerates them back to authored speed over
+q4_guide_recover_time.
 
-Retail Q4 homing-mod defaults:
-  authored rocket speed = 900
-  lockSlowdown          = .25  -> guided target speed 225
-  lockAccelTime         = .5 s
-  turn_max              = 360 deg/s
+Defaults:
+  authored rocket speed       = 900
+  q4_guide_speed_scale        = .25  -> guided target speed 225
+  q4_guide_slow_time          = .5 s
+  q4_guide_recover_time       = .5 s
+  q4_guide_turn_rate          = 360 deg/s
 
 No beam, marker, BSE, trail, impact, explosion, damage, ammo, reload, or normal
 rocket presentation behavior is changed here.
@@ -38,35 +40,44 @@ if end < 0:
 if text.find(start_marker, start + 1) >= 0:
     raise SystemExit('ERROR: V18S found multiple V18P manual-guidance blocks')
 
-new_block = r'''\t// Q4 V18S: Raven Rocket Homing Mod speed + turn behavior.  The original
-\t// V18P steering endpoint is retained, but Quake 4 does not guide at normal
-\t// rocket speed: lockSlowdown=.25 ramps 900 -> 225 over lockAccelTime=.5s.
-\t// Releasing the designator reverses the same linear speed ramp back to the
-\t// authored normal-flight speed.  This block remains opt-in via q4_manual_guide.
+new_block = r'''\t// Q4 V18S: Raven Rocket Homing Mod speed + turn behavior. The original
+\t// V18P steering endpoint is retained, but guidance can slow the projectile
+\t// smoothly and restore normal speed after release. All timing values are
+\t// projectile DEF spawnargs so future tuning requires no DLL rebuild.
 \tif ( state == LAUNCHED && spawnArgs.GetBool( "q4_manual_guide" ) &&
 \t\t owner.GetEntity() && owner.GetEntity()->IsType( idPlayer::Type ) ) {
 \t\tidPlayer* guidePlayer = static_cast<idPlayer*>( owner.GetEntity() );
-\n\t\tidVec3 velocity = physicsObj.GetLinearVelocity();
+
+\t\tidVec3 velocity = physicsObj.GetLinearVelocity();
 \t\tfloat projectileSpeed = velocity.Normalize();
 \t\tif ( projectileSpeed > 0.001f ) {
 \t\t\tidVec3 authoredVelocity;
 \t\t\tspawnArgs.GetVector( "velocity", "900 0 0", authoredVelocity );
 \t\t\tfloat normalSpeed = authoredVelocity.Length();
 \t\t\tif ( normalSpeed < 1.0f ) {
-\t\t\t\tnormalSpeed = projectileSpeed;
+\t\t\t\tnormalSpeed = 900.0f;
 \t\t\t}
-\n\t\t\tfloat slowFraction = spawnArgs.GetFloat( "q4_guide_slow_fraction", "0.25" );
-\t\t\tslowFraction = idMath::ClampFloat( 0.01f, 1.0f, slowFraction );
-\t\t\tconst float guidedSpeed = normalSpeed * slowFraction;
-\t\t\tfloat accelTime = spawnArgs.GetFloat( "q4_guide_accel_time", "0.5" );
-\t\t\tif ( accelTime < 0.001f ) {
-\t\t\t\taccelTime = 0.001f;
+
+\t\t\tfloat speedScale = spawnArgs.GetFloat( "q4_guide_speed_scale", "0.25" );
+\t\t\tspeedScale = idMath::ClampFloat( 0.01f, 1.0f, speedScale );
+\t\t\tconst float guidedSpeed = normalSpeed * speedScale;
+
+\t\t\tfloat slowTime = spawnArgs.GetFloat( "q4_guide_slow_time", "0.5" );
+\t\t\tfloat recoverTime = spawnArgs.GetFloat( "q4_guide_recover_time", "0.5" );
+\t\t\tif ( slowTime < 0.001f ) {
+\t\t\t\tslowTime = 0.001f;
 \t\t\t}
-\n\t\t\tconst bool guiding = ( guidePlayer->usercmd.buttons & BUTTON_5 ) != 0;
+\t\t\tif ( recoverTime < 0.001f ) {
+\t\t\t\trecoverTime = 0.001f;
+\t\t\t}
+
+\t\t\tconst bool guiding = ( guidePlayer->usercmd.buttons & BUTTON_5 ) != 0;
 \t\t\tconst float targetSpeed = guiding ? guidedSpeed : normalSpeed;
+\t\t\tconst float rampTime = guiding ? slowTime : recoverTime;
 \t\t\tconst float fullSpeedDelta = idMath::Fabs( normalSpeed - guidedSpeed );
-\t\t\tconst float speedStep = fullSpeedDelta * MS2SEC( gameLocal.GetMSec() ) / accelTime;
-\n\t\t\tif ( projectileSpeed < targetSpeed ) {
+\t\t\tconst float speedStep = fullSpeedDelta * MS2SEC( gameLocal.GetMSec() ) / rampTime;
+
+\t\t\tif ( projectileSpeed < targetSpeed ) {
 \t\t\t\tprojectileSpeed += speedStep;
 \t\t\t\tif ( projectileSpeed > targetSpeed ) {
 \t\t\t\t\tprojectileSpeed = targetSpeed;
@@ -77,14 +88,16 @@ new_block = r'''\t// Q4 V18S: Raven Rocket Homing Mod speed + turn behavior.  Th
 \t\t\t\t\tprojectileSpeed = targetSpeed;
 \t\t\t\t}
 \t\t\t}
-\n\t\t\tif ( guiding ) {
+
+\t\t\tif ( guiding ) {
 \t\t\t\tconst float guideRange = spawnArgs.GetFloat( "q4_guide_range", "10000" );
 \t\t\t\tconst float turnRate = spawnArgs.GetFloat( "q4_guide_turn_rate", "360" );
 \t\t\t\ttrace_t guideTrace;
 \t\t\t\tconst idVec3 guideStart = guidePlayer->firstPersonViewOrigin;
 \t\t\t\tconst idVec3 guideEnd = guideStart + guidePlayer->firstPersonViewAxis[0] * guideRange;
 \t\t\t\tgameLocal.clip.TracePoint( guideTrace, guideStart, guideEnd, MASK_SHOT_RENDERMODEL, guidePlayer );
-\n\t\t\t\tidVec3 desired = guideTrace.endpos - physicsObj.GetOrigin();
+
+\t\t\t\tidVec3 desired = guideTrace.endpos - physicsObj.GetOrigin();
 \t\t\t\tif ( desired.Normalize() > 0.001f ) {
 \t\t\t\t\tconst float dot = idMath::ClampFloat( -1.0f, 1.0f, velocity * desired );
 \t\t\t\t\tconst float angleDeg = RAD2DEG( idMath::ACos( dot ) );
@@ -103,7 +116,7 @@ new_block = r'''\t// Q4 V18S: Raven Rocket Homing Mod speed + turn behavior.  Th
 \t\t\t\t\t}
 \t\t\t\t}
 \t\t\t} else {
-\t\t\t\t// No steering after release; only restore Raven's normal rocket speed.
+\t\t\t\t// No steering after release; only restore the authored normal speed.
 \t\t\t\tphysicsObj.SetLinearVelocity( velocity * projectileSpeed );
 \t\t\t}
 \t\t}
@@ -113,8 +126,9 @@ new_block = r'''\t// Q4 V18S: Raven Rocket Homing Mod speed + turn behavior.  Th
 text = text[:start] + new_block + text[end:]
 
 for needle in (
-    'GetFloat( "q4_guide_slow_fraction", "0.25" )',
-    'GetFloat( "q4_guide_accel_time", "0.5" )',
+    'GetFloat( "q4_guide_speed_scale", "0.25" )',
+    'GetFloat( "q4_guide_slow_time", "0.5" )',
+    'GetFloat( "q4_guide_recover_time", "0.5" )',
     'GetFloat( "q4_guide_turn_rate", "360" )',
     'const bool guiding = ( guidePlayer->usercmd.buttons & BUTTON_5 ) != 0',
     'physicsObj.SetLinearVelocity( velocity * projectileSpeed )',
@@ -122,7 +136,6 @@ for needle in (
     if needle not in text:
         raise SystemExit(f'ERROR: V18S verification missing: {needle}')
 
-# Make sure the obsolete preserve-current-speed V18P path is gone.
 if 'physicsObj.SetLinearVelocity( newDir * projectileSpeed );' not in text:
     raise SystemExit('ERROR: V18S steering velocity write missing')
 if text.count(start_marker) != 0:
@@ -131,8 +144,20 @@ if text.count(start_marker) != 0:
 PROJECTILE_CPP.write_text(text, encoding='utf-8')
 
 print('Q4BSE V18S RAVEN GUIDANCE SPEED PASS.')
-print('  - normal authored rocket speed remains the source of truth')
-print('  - guide hold ramps to 25% speed over 0.5 s by default')
-print('  - guide release ramps back to normal speed over the same slope')
+print('  - q4_guide_speed_scale defaults to 0.25 (900 -> 225)')
+print('  - q4_guide_slow_time defaults to 0.5 s')
+print('  - q4_guide_recover_time defaults to 0.5 s')
 print('  - guide turn rate defaults to Raven 360 deg/s')
+print('  - release continues speed recovery with no steering')
 print('  - beam/marker/BSE/trail/impact/explosion paths untouched')
+
+# Temporary build diagnostic: if another cumulative patch has injected invalid
+# Game_local.cpp code, print the exact neighborhood immediately before compile.
+local_cpp = ROOT / 'neo' / 'game' / 'Game_local.cpp'
+if local_cpp.exists():
+    local_lines = local_cpp.read_text(encoding='utf-8-sig').splitlines()
+    lo = max(0, min(2768, len(local_lines) - 1))
+    hi = min(len(local_lines), lo + 40)
+    print(f'--- Game_local.cpp diagnostic lines {lo + 1}-{hi} ---')
+    for idx in range(lo, hi):
+        print(f'{idx + 1:5d}: {local_lines[idx]}')
