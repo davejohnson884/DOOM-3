@@ -166,7 +166,7 @@ jobs:
 
       - name: Add V18P Rocket manual guidance and Strogg laser designator
         shell: powershell
-        run: python q4bse_port/apply_q4bse_v18p_rocket_guidance_laser.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/apply_q4bse_v18p_compat.py "$env:GITHUB_WORKSPACE"
 
       - name: Build Game Win32 Release
         shell: powershell
