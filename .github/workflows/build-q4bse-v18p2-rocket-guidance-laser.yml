@@ -1,4 +1,4 @@
-name: Build Q4BSE V18T Dark Matter FX/Rings DLL
+name: Build Q4BSE V18U Dark Matter Core/Light DLL
 
 on:
   workflow_dispatch:
@@ -184,6 +184,10 @@ jobs:
         shell: powershell
         run: python q4bse_port/apply_q4bse_v18t_darkmatter_fx_rings.py "$env:GITHUB_WORKSPACE"
 
+      - name: Add V18U Dark Matter live core joint and BSE light runtime
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v18u_darkmatter_joint_light.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         shell: powershell
         run: |
@@ -203,7 +207,7 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V18T DARK MATTER FX / RINGS
+          Q4BSE V18U DARK MATTER CORE / LIGHT
           ====================================
           - all accepted V18S Rocket guidance behavior retained
           - Raven electricity primitive support for Dark Matter lightning
@@ -216,6 +220,6 @@ jobs:
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V18T-DarkMatter-FX-Rings
+          name: Q4BSE-V18U-DarkMatter-Core-Light
           path: artifact/
           if-no-files-found: error
