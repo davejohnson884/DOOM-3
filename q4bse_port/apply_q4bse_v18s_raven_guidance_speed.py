@@ -40,7 +40,7 @@ if end < 0:
 if text.find(start_marker, start + 1) >= 0:
     raise SystemExit('ERROR: V18S found multiple V18P manual-guidance blocks')
 
-new_block = r'''\t// Q4 V18S: Raven Rocket Homing Mod speed + turn behavior. The original
+new_block = '''\t// Q4 V18S: Raven Rocket Homing Mod speed + turn behavior. The original
 \t// V18P steering endpoint is retained, but guidance can slow the projectile
 \t// smoothly and restore normal speed after release. All timing values are
 \t// projectile DEF spawnargs so future tuning requires no DLL rebuild.
