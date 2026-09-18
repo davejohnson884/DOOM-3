@@ -138,11 +138,13 @@ impact = replace_once(
     }''',
     'generated-normal acceleration transform')
 
-impact = replace_once(
-    impact,
-    '''    if (pt.primitive == "line") {''',
+old_line_size = '''    if (pt.primitive == "line") {'''
+if impact.count(old_line_size) < 1:
+    raise SystemExit('ERROR: V18T missing line-like size sampling anchor')
+impact = impact.replace(
+    old_line_size,
     '''    if (pt.primitive == "line" || pt.primitive == "electricity") {''',
-    'electricity line-like size sampling')
+    1)
 
 old_pos_pattern = re.compile(r'''static idVec3 ParticleWorldPosition\(const M3Particle& p, float ageSec\) \{.*?\n\}''', re.S)
 m = old_pos_pattern.search(impact)
