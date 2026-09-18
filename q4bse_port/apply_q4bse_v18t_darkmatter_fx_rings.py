@@ -174,8 +174,9 @@ new_pos = '''static idVec3 ParticleWorldPosition(const M3Particle& p, float ageS
 impact = impact[:m.start()] + new_pos + impact[m.end():]
 
 line_anchor = '''    if (pt.primitive == "oriented") {'''
-if impact.count(line_anchor) != 1:
-    raise SystemExit(f'ERROR: V18T oriented render anchor count={impact.count(line_anchor)}')
+line_anchor_index = impact.rfind(line_anchor)
+if line_anchor_index < 0:
+    raise SystemExit('ERROR: V18T oriented render anchor not found')
 electricity_render = r'''    if (pt.primitive == "electricity") {
         const float width = idMath::Fabs(EvalFloat(p.sizeStart.x, p.sizeEnd.x, FindDomain(pt.motion, "size"), life));
         const idVec3 localLength = EvalVec3(p.lengthStart, p.lengthEnd, FindDomain(pt.motion, "length"), life);
@@ -236,7 +237,7 @@ electricity_render = r'''    if (pt.primitive == "electricity") {
         return AddSurface(model, pt, points, uv, Q4_ELEC_VERTS, indexes, Q4_ELEC_INDEXES, color);
     }
 '''
-impact = impact.replace(line_anchor, electricity_render + line_anchor, 1)
+impact = impact[:line_anchor_index] + electricity_render + impact[line_anchor_index:]
 
 # Persistent local-transform weapon FX API.
 header = replace_once(
