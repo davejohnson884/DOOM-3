@@ -240,15 +240,15 @@ electricity_render = r'''    if (pt.primitive == "electricity") {
 impact = impact[:line_anchor_index] + electricity_render + impact[line_anchor_index:]
 
 # Persistent local-transform weapon FX API.
-header = replace_once(
-    header,
-    '''bool Q4BSE_AttachEffectToEntityTransform(const char* fxPath, idEntity* entity, const idVec3& worldOrigin, const idMat3& worldAxis);
-void Q4BSE_StopEntityEffects(idEntity* entity);''',
-    '''bool Q4BSE_AttachEffectToEntityTransform(const char* fxPath, idEntity* entity, const idVec3& worldOrigin, const idMat3& worldAxis);
-bool Q4BSE_AttachPersistentEffectToEntityTransform(const char* fxPath, idEntity* entity, const idVec3& worldOrigin, const idMat3& worldAxis);
+api_pat = re.compile(r'(bool Q4BSE_AttachEffectToEntityTransform\\([^\\n]+\\);\\n)')
+api_hits = list(api_pat.finditer(header))
+if len(api_hits) != 1:
+    raise SystemExit(f'ERROR: V18T persistent attachment declaration anchor count={len(api_hits)}')
+header = api_pat.sub(
+    r'''\\1bool Q4BSE_AttachPersistentEffectToEntityTransform(const char* fxPath, idEntity* entity, const idVec3& worldOrigin, const idMat3& worldAxis);
 void Q4BSE_StopEntityEffectPath(idEntity* entity, const char* fxPath);
-void Q4BSE_StopEntityEffects(idEntity* entity);''',
-    'Dark Matter persistent attachment API declarations')
+''',
+    header, count=1)
 
 attach_marker = '''void Q4BSE_StopEntityEffects(idEntity* entity) {'''
 if impact.count(attach_marker) != 1:
