@@ -394,7 +394,7 @@ for required in (
     'effects/weapons/dmg/', 'localAcceleration',
     'Q4BSE_AttachPersistentEffectToEntityTransform',
     'Q4BSE_StopEntityEffectPath', 'q4_darkmatter_runtime',
-    'ring_outer_velocity', 'fx_core_start',
+    'ring_%s_velocity', 'fx_core_start',
 ):
     if required not in combined:
         raise SystemExit(f'ERROR: V18T verification missing: {required}')
