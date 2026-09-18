@@ -240,15 +240,15 @@ electricity_render = r'''    if (pt.primitive == "electricity") {
 impact = impact[:line_anchor_index] + electricity_render + impact[line_anchor_index:]
 
 # Persistent local-transform weapon FX API.
-api_pat = re.compile(r'(bool Q4BSE_AttachEffectToEntityTransform\\([^\\n]+\\);\\n)')
-api_hits = list(api_pat.finditer(header))
-if len(api_hits) != 1:
-    raise SystemExit(f'ERROR: V18T persistent attachment declaration anchor count={len(api_hits)}')
-header = api_pat.sub(
-    r'''\\1bool Q4BSE_AttachPersistentEffectToEntityTransform(const char* fxPath, idEntity* entity, const idVec3& worldOrigin, const idMat3& worldAxis);
-void Q4BSE_StopEntityEffectPath(idEntity* entity, const char* fxPath);
-''',
-    header, count=1)
+header_lines = header.splitlines(True)
+api_line_indexes = [i for i, line in enumerate(header_lines) if 'Q4BSE_AttachEffectToEntityTransform' in line]
+if len(api_line_indexes) != 1:
+    raise SystemExit(f'ERROR: V18T persistent attachment declaration anchor count={len(api_line_indexes)}')
+api_i = api_line_indexes[0]
+header_lines.insert(api_i + 1,
+    'bool Q4BSE_AttachPersistentEffectToEntityTransform(const char* fxPath, idEntity* entity, const idVec3& worldOrigin, const idMat3& worldAxis);\n'
+    'void Q4BSE_StopEntityEffectPath(idEntity* entity, const char* fxPath);\n')
+header = ''.join(header_lines)
 
 attach_marker = '''void Q4BSE_StopEntityEffects(idEntity* entity) {'''
 if impact.count(attach_marker) != 1:
