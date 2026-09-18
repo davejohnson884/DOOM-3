@@ -1,4 +1,4 @@
-name: Build Q4BSE V18S Raven Rocket Guidance DLL
+name: Build Q4BSE V18T Dark Matter FX/Rings DLL
 
 on:
   workflow_dispatch:
@@ -180,6 +180,10 @@ jobs:
         shell: powershell
         run: python q4bse_port/apply_q4bse_v18s_raven_guidance_speed.py "$env:GITHUB_WORKSPACE"
 
+      - name: Add V18T Dark Matter electricity and ring/core runtime
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v18t_darkmatter_fx_rings.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         shell: powershell
         run: |
@@ -199,19 +203,19 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V18S RAVEN ROCKET GUIDANCE SPEED
-          ========================================
-          - V18P/V18Q beam, marker and Mouse2 guidance retained
-          - stock authored normal rocket speed retained
-          - guide hold ramps toward 25 percent speed over 0.5 seconds
-          - guide release ramps back to normal speed over the same slope
-          - guided turn rate defaults to Raven 360 deg/sec
-          - accepted BSE trail/impact/explosion/damage behavior untouched
+          Q4BSE V18T DARK MATTER FX / RINGS
+          ====================================
+          - all accepted V18S Rocket guidance behavior retained
+          - Raven electricity primitive support for Dark Matter lightning
+          - Dark Matter sphere-domain, acceleration and animated-offset support
+          - persistent viewmodel core/core_start BSE attachment API
+          - procedural Dark Matter outer/middle/inner ring rotation
+          - travelling Dark Matter suction/radius damage intentionally not added
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V18S-Raven-Rocket-Guidance
+          name: Q4BSE-V18T-DarkMatter-FX-Rings
           path: artifact/
           if-no-files-found: error
