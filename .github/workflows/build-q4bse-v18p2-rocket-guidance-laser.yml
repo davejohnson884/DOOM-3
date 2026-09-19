@@ -1,4 +1,4 @@
-name: Build Q4BSE V18Y Dark Matter Core Depth-Hack DLL
+name: Build Q4BSE V18Z Dark Matter Core Recharge DLL
 
 on:
   workflow_dispatch:
@@ -196,6 +196,10 @@ jobs:
         shell: powershell
         run: python q4bse_port/apply_q4bse_v18y_darkmatter_core_depthhack.py "$env:GITHUB_WORKSPACE"
 
+      - name: Add V18Z Dark Matter core recharge lifecycle
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v18z_darkmatter_core_recharge.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         shell: powershell
         run: |
@@ -215,7 +219,7 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V18Y DARK MATTER CORE DEPTH-HACK
+          Q4BSE V18Z DARK MATTER CORE RECHARGE
           ====================================
           - all accepted V18S Rocket guidance behavior retained
           - Raven electricity primitive support for Dark Matter lightning
@@ -228,6 +232,6 @@ jobs:
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V18Y-DarkMatter-Core-DepthHack
+          name: Q4BSE-V18Z-DarkMatter-Core-Recharge
           path: artifact/
           if-no-files-found: error
