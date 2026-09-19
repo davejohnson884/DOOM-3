@@ -1,4 +1,4 @@
-name: Build Q4BSE V18X Dark Matter Core Only DLL
+name: Build Q4BSE V18Y Dark Matter Core Depth-Hack DLL
 
 on:
   workflow_dispatch:
@@ -192,6 +192,10 @@ jobs:
         shell: powershell
         run: python q4bse_port/apply_q4bse_v18x_darkmatter_core_only.py "$env:GITHUB_WORKSPACE"
 
+      - name: Add V18Y Dark Matter core view-weapon projection parity
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v18y_darkmatter_core_depthhack.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         shell: powershell
         run: |
@@ -211,7 +215,7 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V18X DARK MATTER CORE ONLY
+          Q4BSE V18Y DARK MATTER CORE DEPTH-HACK
           ====================================
           - all accepted V18S Rocket guidance behavior retained
           - Raven electricity primitive support for Dark Matter lightning
@@ -224,6 +228,6 @@ jobs:
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V18X-DarkMatter-Core-Only
+          name: Q4BSE-V18Y-DarkMatter-Core-DepthHack
           path: artifact/
           if-no-files-found: error
