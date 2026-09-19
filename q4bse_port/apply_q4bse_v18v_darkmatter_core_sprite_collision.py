@@ -184,7 +184,7 @@ weapon = replace_once(
 # ---------------------------------------------------------------------------
 think_anchor = '''void idProjectile::Think( void ) {
 
-	if ( thinkFlags & TH_THINK ) {'''
+	// Q4 V18S: Raven Rocket Homing Mod speed + turn behavior.'''
 think_new = '''void idProjectile::Think( void ) {
 
 	const bool q4DarkMatterProjectile = spawnArgs.GetBool( "q4_darkmatter_projectile" );
@@ -194,7 +194,7 @@ think_new = '''void idProjectile::Think( void ) {
 		physicsObj.SetClipMask( MASK_SOLID );
 	}
 
-	if ( thinkFlags & TH_THINK ) {'''
+	// Q4 V18S: Raven Rocket Homing Mod speed + turn behavior.'''
 projectile = replace_once(projectile, think_anchor, think_new, 'Dark Matter pre-physics clip mask')
 
 run_anchor = '''	// run physics
