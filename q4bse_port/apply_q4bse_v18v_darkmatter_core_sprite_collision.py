@@ -8,8 +8,6 @@ Changes:
   * joint-driven Dark Matter core FX are externally world-transform driven, so
     the BSE frame service no longer overwrites the exact inner_ring transform
     with the weapon entity's coarser physics transform;
-  * Dark Matter sprite quads use proper four-corner billboard geometry instead
-    of the older diamond/bow-tie approximation used by the generic bridge;
   * Dark Matter projectile uses Doom 3 MASK_SOLID each Think, matching Raven's
     Q4 MASK_DMGSOLID intent as closely as Doom 3 supports;
   * if a glancing contact numerically stops the zero-gravity projectile without
@@ -18,7 +16,6 @@ Changes:
 '''
 
 from pathlib import Path
-import re
 import sys
 
 ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd().resolve()
@@ -157,42 +154,11 @@ new_frame_attach = '''            if (g_m3Impact.attachedExternalTransform) {
 impact = replace_once(impact, old_frame_attach, new_frame_attach, 'external transform frame ownership')
 
 # ---------------------------------------------------------------------------
-# Dark Matter-only sprite billboard correction.
-# The old M3 bridge used four axis points, producing diamond/square artifacts.
-# Preserve accepted weapons and correct only effects/weapons/dmg/.
+# Sprite note:
+# The cumulative runtime already has proper four-corner sprite billboards by
+# V18U. V3's flat/squared look is therefore content/material/scale related, not
+# a missing quad-corner fix. Do not rewrite global sprite geometry here.
 # ---------------------------------------------------------------------------
-sprite_pat = re.compile(
-    r'(if \\(pt\\.primitive == "sprite"\\) \\{.*?'
-    r'const idVec3 right = .*?;\\n'
-    r'\\s*const idVec3 up = .*?;\\n)'
-    r'\\s*idVec3 points\\[4\\] = \\{[^\\n]+\\};\\n'
-    r'(\\s*return AddSurface\\(model, pt, points, st, 4, idx, 6, color\\);)',
-    re.S)
-sprite_hits = list(sprite_pat.finditer(impact))
-if len(sprite_hits) != 1:
-    marker = 'pt.primitive == "sprite"'
-    pos = impact.find(marker)
-    context = impact[max(0, pos - 500):min(len(impact), pos + 1800)] if pos >= 0 else '<sprite marker not found>'
-    print('V18V DEBUG SPRITE CONTEXT BEGIN')
-    print(context)
-    print('V18V DEBUG SPRITE CONTEXT END')
-    raise SystemExit(f'ERROR: V18V sprite render branch count={len(sprite_hits)}')
-sprite_repl = r'''\\1        idVec3 points[4];
-        if (g_m3Impact.effectPath.find("effects/weapons/dmg/") != std::string::npos) {
-            points[0] = worldPos - right - up;
-            points[1] = worldPos - right + up;
-            points[2] = worldPos + right + up;
-            points[3] = worldPos + right - up;
-        } else {
-            // Preserve the already-accepted legacy bridge presentation for
-            // previously locked weapons.
-            points[0] = worldPos - right;
-            points[1] = worldPos - up;
-            points[2] = worldPos + right;
-            points[3] = worldPos + up;
-        }
-\\2'''
-impact = sprite_pat.sub(sprite_repl, impact, count=1)
 
 # ---------------------------------------------------------------------------
 # Weapon: use externally driven FX for both charge-up and persistent idle core.
@@ -269,8 +235,6 @@ combined = impact + header + weapon + projectile
 for required in (
     'attachedExternalTransform',
     'Q4BSE_AttachDrivenEffectToEntityTransform',
-    'effects/weapons/dmg/',
-    'worldPos - right - up',
     'q4_darkmatter_projectile',
     'physicsObj.SetClipMask( MASK_SOLID )',
     'TraceBounds( q4ContactTrace',
@@ -283,9 +247,8 @@ HEADER.write_text(header, encoding='utf-8')
 WEAPON.write_text(weapon, encoding='utf-8')
 PROJECTILE.write_text(projectile, encoding='utf-8')
 
-print('Q4BSE V18V DARK MATTER CORE/SPRITE/COLLISION PASS.')
+print('Q4BSE V18V DARK MATTER CORE/COLLISION PASS.')
 print('  - core FX world transform is owned directly by the live inner_ring joint')
-print('  - Dark Matter sprite billboard geometry corrected without touching locked weapons')
 print('  - Dark Matter projectile uses MASK_SOLID like Raven MASK_DMGSOLID intent')
 print('  - stopped glancing contacts recover a real bounds trace and detonate normally')
 print('  - travelling suction/radius damage still intentionally NOT implemented')
