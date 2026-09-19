@@ -1,4 +1,4 @@
-name: Build Q4BSE V18U Dark Matter Core/Light DLL
+name: Build Q4BSE V18V Dark Matter Core/Sprite/Collision DLL
 
 on:
   workflow_dispatch:
@@ -188,6 +188,10 @@ jobs:
         shell: powershell
         run: python q4bse_port/apply_q4bse_v18u_darkmatter_joint_light.py "$env:GITHUB_WORKSPACE"
 
+      - name: Add V18V Dark Matter core lock, sprite geometry and corner collision recovery
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v18v_darkmatter_core_sprite_collision.py "$env:GITHUB_WORKSPACE"
+
       - name: Build Game Win32 Release
         shell: powershell
         run: |
@@ -207,7 +211,7 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V18U DARK MATTER CORE / LIGHT
+          Q4BSE V18V DARK MATTER CORE / SPRITE / COLLISION
           ====================================
           - all accepted V18S Rocket guidance behavior retained
           - Raven electricity primitive support for Dark Matter lightning
@@ -220,6 +224,6 @@ jobs:
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V18U-DarkMatter-Core-Light
+          name: Q4BSE-V18V-DarkMatter-Core-Sprite-Collision
           path: artifact/
           if-no-files-found: error
