@@ -18,6 +18,7 @@ Changes:
 '''
 
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd().resolve()
@@ -160,9 +161,17 @@ impact = replace_once(impact, old_frame_attach, new_frame_attach, 'external tran
 # The old M3 bridge used four axis points, producing diamond/square artifacts.
 # Preserve accepted weapons and correct only effects/weapons/dmg/.
 # ---------------------------------------------------------------------------
-old_sprite_points = '''        idVec3 points[4] = { worldPos - right, worldPos - up, worldPos + right, worldPos + up };
-        return AddSurface(model, pt, points, st, 4, idx, 6, color);'''
-new_sprite_points = '''        idVec3 points[4];
+sprite_pat = re.compile(
+    r'(if \\(pt\\.primitive == "sprite"\\) \\{.*?'
+    r'const idVec3 right = .*?;\\n'
+    r'\\s*const idVec3 up = .*?;\\n)'
+    r'\\s*idVec3 points\\[4\\] = \\{[^\\n]+\\};\\n'
+    r'(\\s*return AddSurface\\(model, pt, points, st, 4, idx, 6, color\\);)',
+    re.S)
+sprite_hits = list(sprite_pat.finditer(impact))
+if len(sprite_hits) != 1:
+    raise SystemExit(f'ERROR: V18V sprite render branch count={len(sprite_hits)}')
+sprite_repl = r'''\\1        idVec3 points[4];
         if (g_m3Impact.effectPath.find("effects/weapons/dmg/") != std::string::npos) {
             points[0] = worldPos - right - up;
             points[1] = worldPos - right + up;
@@ -176,8 +185,8 @@ new_sprite_points = '''        idVec3 points[4];
             points[2] = worldPos + right;
             points[3] = worldPos + up;
         }
-        return AddSurface(model, pt, points, st, 4, idx, 6, color);'''
-impact = replace_once(impact, old_sprite_points, new_sprite_points, 'Dark Matter sprite billboard geometry')
+\\2'''
+impact = sprite_pat.sub(sprite_repl, impact, count=1)
 
 # ---------------------------------------------------------------------------
 # Weapon: use externally driven FX for both charge-up and persistent idle core.
