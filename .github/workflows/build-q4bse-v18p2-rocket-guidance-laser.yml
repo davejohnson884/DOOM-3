@@ -1,4 +1,4 @@
-name: Build Q4BSE V18W Dark Matter Exact Core/Radial/Contact DLL
+name: Build Q4BSE V18X Dark Matter Core Only DLL
 
 on:
   workflow_dispatch:
@@ -188,13 +188,9 @@ jobs:
         shell: powershell
         run: python q4bse_port/apply_q4bse_v18u_darkmatter_joint_light.py "$env:GITHUB_WORKSPACE"
 
-      - name: Add V18V Dark Matter core lock, sprite geometry and corner collision recovery
+      - name: Add V18X Dark Matter CORE-ONLY isolation fix
         shell: powershell
-        run: python q4bse_port/apply_q4bse_v18v_darkmatter_core_sprite_collision.py "$env:GITHUB_WORKSPACE"
-
-      - name: Add V18W Dark Matter exact core, radial generated length and hard contact
-        shell: powershell
-        run: python q4bse_port/apply_q4bse_v18w_darkmatter_exact_core_radial_contact.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/apply_q4bse_v18x_darkmatter_core_only.py "$env:GITHUB_WORKSPACE"
 
       - name: Build Game Win32 Release
         shell: powershell
@@ -215,7 +211,7 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V18W DARK MATTER EXACT CORE / RADIAL / CONTACT
+          Q4BSE V18X DARK MATTER CORE ONLY
           ====================================
           - all accepted V18S Rocket guidance behavior retained
           - Raven electricity primitive support for Dark Matter lightning
@@ -228,6 +224,6 @@ jobs:
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V18W-DarkMatter-Exact-Core-Radial-Contact
+          name: Q4BSE-V18X-DarkMatter-Core-Only
           path: artifact/
           if-no-files-found: error
