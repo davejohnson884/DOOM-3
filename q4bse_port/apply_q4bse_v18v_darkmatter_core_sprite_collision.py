@@ -170,6 +170,12 @@ sprite_pat = re.compile(
     re.S)
 sprite_hits = list(sprite_pat.finditer(impact))
 if len(sprite_hits) != 1:
+    marker = 'pt.primitive == "sprite"'
+    pos = impact.find(marker)
+    context = impact[max(0, pos - 500):min(len(impact), pos + 1800)] if pos >= 0 else '<sprite marker not found>'
+    print('V18V DEBUG SPRITE CONTEXT BEGIN')
+    print(context)
+    print('V18V DEBUG SPRITE CONTEXT END')
     raise SystemExit(f'ERROR: V18V sprite render branch count={len(sprite_hits)}')
 sprite_repl = r'''\\1        idVec3 points[4];
         if (g_m3Impact.effectPath.find("effects/weapons/dmg/") != std::string::npos) {
