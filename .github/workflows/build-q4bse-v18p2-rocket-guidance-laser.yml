@@ -208,6 +208,22 @@ jobs:
         shell: powershell
         run: python q4bse_port/apply_q4bse_v19b_darkmatter_core_handoff.py "$env:GITHUB_WORKSPACE"
 
+      - name: Stage patched core source
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force source_artifact | Out-Null
+          Copy-Item neo\game\q4bse\Q4BSEImpactM3.cpp source_artifact\Q4BSEImpactM3.cpp
+          Copy-Item neo\game\q4bse\Q4FxParser.h source_artifact\Q4FxParser.h
+          Copy-Item neo\game\q4bse\Q4FxParser.cpp source_artifact\Q4FxParser.cpp
+          Copy-Item neo\game\Weapon.cpp source_artifact\Weapon.cpp
+
+      - name: Upload patched core source
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-Final-Patched-Core-Source
+          path: source_artifact/
+          if-no-files-found: error
+
       - name: Build Game Win32 Release
         shell: powershell
         run: |
