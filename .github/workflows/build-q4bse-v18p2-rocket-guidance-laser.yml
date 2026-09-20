@@ -1,4 +1,4 @@
-name: Build Q4BSE V19C Dark Matter Native Core Renderer DLL
+name: Build Q4BSE V19D Dark Matter Native Core Lines DLL
 
 on:
   workflow_dispatch:
@@ -212,6 +212,10 @@ jobs:
         shell: powershell
         run: python q4bse_port/apply_q4bse_v19c_darkmatter_native_electricity.py "$env:GITHUB_WORKSPACE"
 
+      - name: Add V19D Dark Matter native line segment presentation
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19d_darkmatter_native_lines.py "$env:GITHUB_WORKSPACE"
+
       - name: Stage patched core source
         shell: powershell
         run: |
@@ -247,7 +251,7 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V19C DARK MATTER NATIVE CORE RENDERER
+          Q4BSE V19D DARK MATTER NATIVE CORE LINES
           ====================================
           - all accepted V18S Rocket guidance behavior retained
           - Raven electricity primitive support for Dark Matter lightning
@@ -260,6 +264,6 @@ jobs:
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V19C-DarkMatter-Native-Core-Renderer
+          name: Q4BSE-V19D-DarkMatter-Native-Core-Lines
           path: artifact/
           if-no-files-found: error
