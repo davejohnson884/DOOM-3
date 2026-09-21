@@ -46,20 +46,26 @@ new = '''    else if (domain->type == "sphere" && dims >= 3 &&
               !idStr::Icmp(g_m3Impact.effectPath.c_str(), "effects/weapons/dmg/core.fx") ||
               !idStr::Icmp(g_m3Impact.effectPath.c_str(), "effects/weapons/dmg/core_start.fx"))) {'''
 
-hits = text.count(old)
-if hits != 1:
-    raise SystemExit(f'ERROR: V19E expected one Rocket-only sphere sampler, found {hits}')
+# Be tolerant of later patches reformatting the V18N condition. Also be
+# idempotent when the Dark Matter paths are already present.
+if 'effects/weapons/dmg/core_start.fx' in text and 'domain->type == "sphere"' in text:
+    print('V19E: Dark Matter sphere-domain scope already present; keeping it.')
+else:
+    import re
+    pattern = re.compile(
+        r'    else if \\(domain->type == "sphere" && dims >= 3 &&\\s*'
+        r'g_m3Impact\\.effectPath\\.find\\("effects/weapons/rocketlauncher/"\\) != std::string::npos\\) \\{'
+    )
+    matches = list(pattern.finditer(text))
+    if len(matches) != 1:
+        raise SystemExit(f'ERROR: V19E expected one Rocket sphere sampler, found {len(matches)}')
 
-text = text.replace(old, new, 1)
-
-# Add a clarifying comment right above the sphere branch.
-comment_anchor = new
-commented = '''    // Raven sphere/sphere-surface parity. V18N originally limited this to
+    commented = '''    // Raven sphere/sphere-surface parity. V18N originally limited this to
     // Rocket explosion FX. Dark Matter core/core_start use the same domain for
     // their generatedNormal electricity + blackline shells and MUST sample the
     // sphere too; otherwise all particles collapse to the minimum corner.
 ''' + new
-text = text.replace(new, commented, 1)
+    text = pattern.sub(commented, text, count=1)
 
 for required in (
     'effects/weapons/dmg/core.fx',
