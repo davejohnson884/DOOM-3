@@ -1,4 +1,4 @@
-name: Build Q4BSE V19E Dark Matter Sphere Domain DLL
+name: Build Q4BSE V19F Dark Matter View Weapon Light DLL
 
 on:
   workflow_dispatch:
@@ -220,6 +220,10 @@ jobs:
         shell: powershell
         run: python q4bse_port/apply_q4bse_v19e_darkmatter_sphere_domains.py "$env:GITHUB_WORKSPACE"
 
+      - name: Add V19F Dark Matter first-person weapon light parity
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19f_darkmatter_view_light.py "$env:GITHUB_WORKSPACE"
+
       - name: Stage patched core source
         shell: powershell
         run: |
@@ -255,7 +259,7 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V19E DARK MATTER SPHERE DOMAIN
+          Q4BSE V19F DARK MATTER VIEW WEAPON LIGHT
           ====================================
           - all accepted V18S Rocket guidance behavior retained
           - Raven electricity primitive support for Dark Matter lightning
@@ -268,6 +272,6 @@ jobs:
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V19E-DarkMatter-Sphere-Domain
+          name: Q4BSE-V19F-DarkMatter-View-Weapon-Light
           path: artifact/
           if-no-files-found: error
