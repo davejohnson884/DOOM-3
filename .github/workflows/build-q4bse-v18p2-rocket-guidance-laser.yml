@@ -235,7 +235,8 @@ jobs:
           Copy-Item neo\game\q4bse\Q4BSEImpactM3.cpp source_artifact\Q4BSEImpactM3.cpp
           Copy-Item neo\game\q4bse\Q4FxParser.h source_artifact\Q4FxParser.h
           Copy-Item neo\game\q4bse\Q4FxParser.cpp source_artifact\Q4FxParser.cpp
-          Copy-Item neo\game\Weapon.cpp source_artifact\Weapon.cpp\n          Copy-Item neo\game\Projectile.cpp source_artifact\Projectile.cpp
+          Copy-Item neo\game\Weapon.cpp source_artifact\Weapon.cpp
+          Copy-Item neo\game\Projectile.cpp source_artifact\Projectile.cpp
 
       - name: Upload patched core source
         uses: actions/upload-artifact@v4
