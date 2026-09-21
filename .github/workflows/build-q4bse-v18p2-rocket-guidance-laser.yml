@@ -1,4 +1,4 @@
-name: Build Q4BSE V19F Dark Matter View Weapon Light DLL
+name: Build Q4BSE V19G Dark Matter Projectile Parity DLL
 
 on:
   workflow_dispatch:
@@ -224,6 +224,10 @@ jobs:
         shell: powershell
         run: python q4bse_port/apply_q4bse_v19f_darkmatter_view_light.py "$env:GITHUB_WORKSPACE"
 
+      - name: Add V19G Dark Matter projectile parity foundation
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19g_darkmatter_projectile_parity.py "$env:GITHUB_WORKSPACE"
+
       - name: Stage patched core source
         shell: powershell
         run: |
@@ -231,7 +235,7 @@ jobs:
           Copy-Item neo\game\q4bse\Q4BSEImpactM3.cpp source_artifact\Q4BSEImpactM3.cpp
           Copy-Item neo\game\q4bse\Q4FxParser.h source_artifact\Q4FxParser.h
           Copy-Item neo\game\q4bse\Q4FxParser.cpp source_artifact\Q4FxParser.cpp
-          Copy-Item neo\game\Weapon.cpp source_artifact\Weapon.cpp
+          Copy-Item neo\game\Weapon.cpp source_artifact\Weapon.cpp\n          Copy-Item neo\game\Projectile.cpp source_artifact\Projectile.cpp
 
       - name: Upload patched core source
         uses: actions/upload-artifact@v4
@@ -259,19 +263,19 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V19F DARK MATTER VIEW WEAPON LIGHT
+          Q4BSE V19G DARK MATTER PROJECTILE PARITY
           ====================================
           - all accepted V18S Rocket guidance behavior retained
           - Raven electricity primitive support for Dark Matter lightning
           - Dark Matter sphere-domain, acceleration and animated-offset support
           - persistent viewmodel core/core_start BSE attachment API
           - procedural Dark Matter outer/middle/inner ring rotation
-          - travelling Dark Matter suction/radius damage intentionally not added
+          - travelling Dark Matter 50 ms radius-damage/suction behavior restored\n          - fly.fx electricity uses native Raven-shaped Dark Matter rendering
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V19F-DarkMatter-View-Weapon-Light
+          name: Q4BSE-V19G-DarkMatter-Projectile-Parity
           path: artifact/
           if-no-files-found: error
