@@ -58,6 +58,17 @@ else:
     )
     matches = list(pattern.finditer(text))
     if len(matches) != 1:
+        print('V19E DIAGNOSTIC: sphere occurrences in current patched source:')
+        pos = 0
+        seen = 0
+        while True:
+            pos = text.find('sphere', pos)
+            if pos < 0 or seen >= 12:
+                break
+            print('--- sphere @', pos)
+            print(text[max(0, pos - 500):pos + 1200])
+            pos += 6
+            seen += 1
         raise SystemExit(f'ERROR: V19E expected one Rocket sphere sampler, found {len(matches)}')
 
     commented = '''    // Raven sphere/sphere-surface parity. V18N originally limited this to
