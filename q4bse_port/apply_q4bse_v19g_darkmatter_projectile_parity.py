@@ -84,6 +84,19 @@ new_dispatch = '''    if (pt.primitive == "electricity") {
         // Keep all unrelated generic/projectile electricity unchanged.'''
 impact = replace_once(impact, old_dispatch, new_dispatch, 'Dark Matter fly native electricity dispatch')
 
+# Raven segment 'locked' semantics matter on a moving projectile. The central
+# shell/electricity/line emitters are locked to the projectile, while the
+# plasma/smoke trail emitters are intentionally NOT locked and must stay where
+# they were born in world space.
+old_persist = '''    p.persistWorld = pt.persist && g_m3Impact.attachedPersistent;'''
+new_persist = '''    const bool q4DarkMatterFlySpawn =
+        !idStr::Icmp(g_m3Impact.effectPath.c_str(), "effects/weapons/dmg/fly.fx");
+    p.persistWorld =
+        (pt.persist || (q4DarkMatterFlySpawn && !segment.locked)) &&
+        g_m3Impact.attachedPersistent;'''
+impact = replace_once(impact, old_persist, new_persist, 'Dark Matter fly locked/world-persist semantics')
+
+
 # ---------------------------------------------------------------------------
 # Raven rvDarkMatterProjectile::Think parity.
 #
@@ -137,6 +150,8 @@ for required in (
     'def_radius_damage',
     '_q4_dmg_next_damage_time',
     'gameLocal.RadiusDamage(',
+    'q4DarkMatterFlySpawn',
+    '!segment.locked',
 ):
     if required not in impact + projectile:
         raise SystemExit(f'ERROR: V19G verification missing: {required}')
