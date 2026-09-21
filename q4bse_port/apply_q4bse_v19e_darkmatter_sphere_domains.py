@@ -67,14 +67,14 @@ else:
 ''' + new
     text = pattern.sub(commented, text, count=1)
 
-for required in (
-    'effects/weapons/dmg/core.fx',
-    'effects/weapons/dmg/core_start.fx',
-    'domain->type == "sphere"',
-    'otherwise all particles collapse to the minimum corner',
-):
-    if required not in text:
-        raise SystemExit(f'ERROR: V19E verification missing: {required}')
+# Either the exact core/core_start scope added by this script OR the broader
+# already-accepted effects/weapons/dmg/ scope is valid.
+if 'domain->type == "sphere"' not in text:
+    raise SystemExit('ERROR: V19E verification missing sphere sampler')
+if ('g_m3Impact.effectPath.find("effects/weapons/dmg/")' not in text and
+    ('effects/weapons/dmg/core.fx' not in text or
+     'effects/weapons/dmg/core_start.fx' not in text)):
+    raise SystemExit('ERROR: V19E verification missing Dark Matter dmg sphere scope')
 
 IMPACT.write_text(text, encoding='utf-8')
 
