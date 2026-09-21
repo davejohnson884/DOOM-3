@@ -130,17 +130,6 @@ think_new = '''	// run physics
 	Present();'''
 projectile = replace_once(projectile, think_anchor, think_new, 'projectile travelling radius-damage hook')
 
-# Initialize the private timer at launch so reused/network-created projectile
-# entities cannot inherit a stale timestamp.
-launch_anchor = '''	lightStartTime = 0;
-	lightEndTime = 0;'''
-launch_new = '''	lightStartTime = 0;
-	lightEndTime = 0;
-	if ( spawnArgs.GetBool( "q4_darkmatter_projectile" ) ) {
-		spawnArgs.Set( "_q4_dmg_next_damage_time", "0" );
-	}'''
-projectile = replace_once(projectile, launch_anchor, launch_new, 'Dark Matter damage timer launch reset')
-
 for required in (
     'q4DarkMatterFly',
     'effects/weapons/dmg/fly.fx',
