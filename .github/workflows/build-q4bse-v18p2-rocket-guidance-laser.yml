@@ -1,4 +1,4 @@
-name: Build Q4BSE V19G Dark Matter Projectile Parity DLL
+name: Build Q4BSE V19H Dark Matter Motion Parity DLL
 
 on:
   workflow_dispatch:
@@ -228,6 +228,10 @@ jobs:
         shell: powershell
         run: python q4bse_port/apply_q4bse_v19g_darkmatter_projectile_parity.py "$env:GITHUB_WORKSPACE"
 
+      - name: Add V19H Dark Matter motion parity
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19h_darkmatter_motion_parity.py "$env:GITHUB_WORKSPACE"
+
       - name: Stage patched core source
         shell: powershell
         run: |
@@ -264,7 +268,7 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V19G DARK MATTER PROJECTILE PARITY
+          Q4BSE V19H DARK MATTER MOTION PARITY
           ====================================
           - all accepted V18S Rocket guidance behavior retained
           - Raven electricity primitive support for Dark Matter lightning
@@ -277,6 +281,6 @@ jobs:
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V19G-DarkMatter-Projectile-Parity
+          name: Q4BSE-V19H-DarkMatter-Motion-Parity
           path: artifact/
           if-no-files-found: error
