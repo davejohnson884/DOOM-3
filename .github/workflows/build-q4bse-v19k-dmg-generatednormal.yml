@@ -1,0 +1,89 @@
+name: Build Q4BSE V19K DMG GeneratedNormal Wall Sphere Fix
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - q4bse-v19k-dmg-generatednormal-fix
+    paths:
+      - 'q4bse_port/**'
+      - 'q4bse_v16_muzzle_lock_gui.py'
+      - 'q4bse_v17_q4_decal_life_bridge.py'
+      - 'q4bse_v18_grenade_launcher_bse.py'
+      - 'q4bse_v18b_nailgun_gui_ammo_track.py'
+      - 'q4bse_v18c_machinegun_exact.py'
+      - 'q4bse_v18d_machinegun_native_lower_gui_light.py'
+      - 'q4bse_v18e_shotgun_joint_muzzle.py'
+      - '.github/workflows/build-q4bse-v19k-dmg-generatednormal.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-game-dll:
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout V19K test branch
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Apply cumulative Q4BSE pipeline through V19K
+        shell: powershell
+        run: python q4bse_port/run_q4bse_v19k_pipeline.py "$env:GITHUB_WORKSPACE"
+
+      - name: Stage patched core source
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force source_artifact | Out-Null
+          Copy-Item neo\game\q4bse\Q4BSEImpactM3.cpp source_artifact\Q4BSEImpactM3.cpp
+          Copy-Item neo\game\q4bse\Q4FxParser.h source_artifact\Q4FxParser.h
+          Copy-Item neo\game\q4bse\Q4FxParser.cpp source_artifact\Q4FxParser.cpp
+          Copy-Item neo\game\Weapon.cpp source_artifact\Weapon.cpp
+          Copy-Item neo\game\Projectile.cpp source_artifact\Projectile.cpp
+
+      - name: Upload patched core source
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-V19K-Patched-Core-Source
+          path: source_artifact/
+          if-no-files-found: error
+
+      - name: Build Game Win32 Release
+        shell: powershell
+        run: |
+          msbuild neo\game.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /verbosity:minimal
+
+      - name: Verify gamex86.dll
+        shell: powershell
+        run: |
+          $dll = Join-Path $env:GITHUB_WORKSPACE 'build\Win32\Release\gamex86.dll'
+          if (!(Test-Path $dll)) { throw "gamex86.dll was not produced at $dll" }
+          Get-Item $dll | Format-List FullName,Length,LastWriteTime
+          Get-FileHash $dll -Algorithm SHA256
+
+      - name: Stage artifact
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
+          @"
+          Q4BSE V19K DMG GENERATEDNORMAL WALL SPHERE FIX
+          ==============================================
+          - V19J exact stock Raven explosion runtime retained
+          - air/fuse impact_default.fx remains untouched
+          - wall impact_default_mp.fx keeps original Raven 70/70/70 matter layers
+          - only DMG wall generatedNormal oriented quads use the per-particle radial basis
+          - generatedNormal velocity/acceleration transform remains unchanged
+          - Rocket V18O oriented behavior remains unchanged
+          "@ | Set-Content artifact\README_TEST.txt
+
+      - name: Upload game DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-V19K-DMG-GeneratedNormal-Wall-Sphere-Fix
+          path: artifact/
+          if-no-files-found: error
