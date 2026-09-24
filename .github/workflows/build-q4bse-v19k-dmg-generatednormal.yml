@@ -1,4 +1,4 @@
-name: Build Q4BSE V19K DMG GeneratedNormal Wall Sphere Fix
+name: Build Q4BSE V19L Raven DMG Wall Sphere Orientation
 
 on:
   workflow_dispatch:
@@ -25,13 +25,13 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout V19K test branch
+      - name: Checkout V19L test branch
         uses: actions/checkout@v4
 
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Apply cumulative Q4BSE pipeline through V19K
+      - name: Apply cumulative Q4BSE pipeline through V19L
         shell: powershell
         run: python q4bse_port/run_q4bse_v19k_pipeline.py "$env:GITHUB_WORKSPACE"
 
@@ -48,7 +48,7 @@ jobs:
       - name: Upload patched core source
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V19K-Patched-Core-Source
+          name: Q4BSE-V19L-Patched-Core-Source
           path: source_artifact/
           if-no-files-found: error
 
@@ -71,19 +71,21 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V19K DMG GENERATEDNORMAL WALL SPHERE FIX
-          ==============================================
+          Q4BSE V19L RAVEN DMG WALL SPHERE ORIENTATION
+          =============================================
           - V19J exact stock Raven explosion runtime retained
-          - air/fuse impact_default.fx remains untouched
+          - V19K test superseded: no render-time generatedNormal matrix composition
           - wall impact_default_mp.fx keeps original Raven 70/70/70 matter layers
-          - only DMG wall generatedNormal oriented quads use the per-particle radial basis
-          - generatedNormal velocity/acceleration transform remains unchanged
-          - Rocket V18O oriented behavior remains unchanged
+          - generatedNormal still radializes velocity/acceleration
+          - generated normal angles are now added to oriented rotation envelopes at spawn, matching Raven HandleOrientation
+          - collision effect axis still orients the whole effect to floor/wall/angled surfaces
+          - air/fuse impact_default.fx remains untouched
+          - Rocket/core/projectile behavior remains untouched
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V19K-DMG-GeneratedNormal-Wall-Sphere-Fix
+          name: Q4BSE-V19L-Raven-DMG-Wall-Sphere-Orientation
           path: artifact/
           if-no-files-found: error
