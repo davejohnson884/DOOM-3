@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 '''Reproduce the accepted cumulative Q4BSE source pipeline through V19H, then
-apply V19J stock Raven explosion runtime and V19K DMG wall generatedNormal fix.
-Used only by the isolated V19K Actions branch/workflow.
+apply V19J stock Raven explosion runtime, V19K DMG wall generatedNormal fix,
+and V19L exact Raven oriented-particle rotation-envelope parity.
+Used only by the isolated Dark Matter explosion Actions branch/workflow.
 '''
 from pathlib import Path
 import subprocess
@@ -101,5 +102,6 @@ run('q4bse_port/apply_q4bse_v19h_darkmatter_motion_parity.py')
 # detonation experiment and apply V19J directly to V19H.
 run('q4bse_port/apply_q4bse_v19j_darkmatter_stock_explosion_runtime.py')
 run('q4bse_port/apply_q4bse_v19k_dmg_generatednormal_oriented.py')
+run('q4bse_port/apply_q4bse_v19l_dmg_raven_orientation_envelope.py')
 
-print('Q4BSE V19K cumulative pipeline complete.', flush=True)
+print('Q4BSE V19L cumulative pipeline complete.', flush=True)
