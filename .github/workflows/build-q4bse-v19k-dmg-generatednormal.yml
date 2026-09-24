@@ -1,4 +1,4 @@
-name: Build Q4BSE V19L Raven DMG Wall Sphere Orientation
+name: Build Q4BSE V19M Dark Matter Lighting
 
 on:
   workflow_dispatch:
@@ -25,13 +25,13 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout V19L test branch
+      - name: Checkout V19M test branch
         uses: actions/checkout@v4
 
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Apply cumulative Q4BSE pipeline through V19L
+      - name: Apply cumulative Q4BSE pipeline through V19M
         shell: powershell
         run: python q4bse_port/run_q4bse_v19k_pipeline.py "$env:GITHUB_WORKSPACE"
 
@@ -48,7 +48,7 @@ jobs:
       - name: Upload patched core source
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V19L-Patched-Core-Source
+          name: Q4BSE-V19M-Patched-Core-Source
           path: source_artifact/
           if-no-files-found: error
 
@@ -71,21 +71,18 @@ jobs:
           New-Item -ItemType Directory -Force artifact | Out-Null
           Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
           @"
-          Q4BSE V19L RAVEN DMG WALL SPHERE ORIENTATION
-          =============================================
-          - V19J exact stock Raven explosion runtime retained
-          - V19K test superseded: no render-time generatedNormal matrix composition
-          - wall impact_default_mp.fx keeps original Raven 70/70/70 matter layers
-          - generatedNormal still radializes velocity/acceleration
-          - generated normal angles are now added to oriented rotation envelopes at spawn, matching Raven HandleOrientation
-          - collision effect axis still orients the whole effect to floor/wall/angled surfaces
-          - air/fuse impact_default.fx remains untouched
-          - Rocket/core/projectile behavior remains untouched
+          Q4BSE V19M DARK MATTER LIGHTING
+          ================================
+          - retains V19L Raven DMG wall-sphere orientation parity
+          - adds built-in randomflick envelope support
+          - Dark Matter projectile/core randomflick no longer falls back to linear
+          - enables visible high-frequency travel-light flicker when authored in fly.fx
+          - existing explosion/oriented generatedNormal runtime remains unchanged
           "@ | Set-Content artifact\README_TEST.txt
 
       - name: Upload game DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Q4BSE-V19L-Raven-DMG-Wall-Sphere-Orientation
+          name: Q4BSE-V19M-DarkMatter-RandomFlick-Lighting
           path: artifact/
           if-no-files-found: error
