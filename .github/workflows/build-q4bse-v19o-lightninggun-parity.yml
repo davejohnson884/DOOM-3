@@ -42,7 +42,7 @@ jobs:
           Select-String -Path neo\game\Weapon.cpp -Pattern 'UpdateQ4LightningGun'
           Select-String -Path neo\game\Weapon.cpp -Pattern 'q4_bse_loop_emitters'
           Select-String -Path neo\game\Weapon.cpp -Pattern 'do not synthesize Doom 3 projectile-style muzzle rise'
-          if (Select-String -Path neo\game\Weapon.cpp -Pattern 'kick_endtime \+= muzzle_kick_time' -Quiet) { throw 'V19N synthetic Lightning Gun muzzle kick still present' }
+          if (Select-String -Path neo\game\Weapon.cpp -Pattern "Preserve Doom 3's accumulated muzzle-kick behavior without a fake projectile" -Quiet) { throw 'V19N Lightning Gun kick block still present' }
           Select-String -Path neo\game\q4bse\Q4BSEImpactM3.cpp -Pattern 'Q4BSE_AttachPersistentEffectBetween'
 
       - name: Build Game Win32 Release
