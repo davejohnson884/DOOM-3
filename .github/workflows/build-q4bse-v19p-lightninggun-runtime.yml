@@ -1,0 +1,92 @@
+name: Build Q4BSE V19P Lightning Gun Runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - q4bse-v19p-lg-runtime
+    paths:
+      - 'q4bse_port/apply_q4bse_v19p_lightninggun_runtime.py'
+      - '.github/workflows/build-q4bse-v19p-lightninggun-runtime.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-game-dll:
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout V19P branch
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Apply accepted cumulative Q4BSE pipeline through V19L
+        shell: powershell
+        run: python q4bse_port/run_q4bse_v19k_pipeline.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19N source-driven Lightning Gun runtime
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19n_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19O Lightning Gun parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19o_lightninggun_parity.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19P runtime parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19p_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+
+      - name: Verify V19P source gates
+        shell: powershell
+        run: |
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'WEAPON_ATTACK \|\| WEAPON_NETFIRING'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'SetShakeParms'
+          Select-String -Path neo\game\PlayerView.h -Pattern 'SetShakeParms'
+          Select-String -Path neo\game\PlayerView.cpp -Pattern 'shakeFinishTime'
+          Select-String -Path neo\game\q4bse\Q4BSEImpactM3.cpp -Pattern 'q4LightningGunAttached'
+          if (Select-String -Path neo\game\Weapon.cpp -Pattern 'const bool firing = isFiring' -Quiet) { throw 'Old delayed Lightning Gun firing gate still present' }
+
+      - name: Build Game Win32 Release
+        shell: powershell
+        run: msbuild neo\game.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /verbosity:minimal
+
+      - name: Verify gamex86.dll
+        shell: powershell
+        run: |
+          $dll = Join-Path $env:GITHUB_WORKSPACE 'build\Win32\Release\gamex86.dll'
+          if (!(Test-Path $dll)) { throw 'gamex86.dll was not produced' }
+          Get-Item $dll | Format-List FullName,Length,LastWriteTime
+          Get-FileHash $dll -Algorithm SHA256
+
+      - name: Stage V19P artifact
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
+          Copy-Item neo\game\Weapon.cpp artifact\Weapon.cpp
+          Copy-Item neo\game\Weapon.h artifact\Weapon.h
+          Copy-Item neo\game\PlayerView.cpp artifact\PlayerView.cpp
+          Copy-Item neo\game\PlayerView.h artifact\PlayerView.h
+          Copy-Item neo\game\q4bse\Q4BSEImpactM3.cpp artifact\Q4BSEImpactM3.cpp
+          Copy-Item neo\game\q4bse\Q4BSEImpactM3.h artifact\Q4BSEImpactM3.h
+          @"
+          Q4BSE V19P LIGHTNING GUN RUNTIME PARITY
+          ========================================
+          Base: accepted V19L + V19N + V19O.
+          V19P changes:
+          - live WEAPON_ATTACK gate cuts beam/spire instantly on release
+          - attached spire/tube electricity uses Raven per-frame jitter
+          - Raven Lightning Gun 500ms / scale-2 screen shake ported to Doom 3 PlayerView
+          Content companion handles interruptible shoot_end and rapid-tap sound/state parity.
+          "@ | Set-Content artifact\README_TEST.txt
+
+      - name: Upload V19P artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-V19P-LightningGun-Runtime
+          path: artifact/
+          if-no-files-found: error
