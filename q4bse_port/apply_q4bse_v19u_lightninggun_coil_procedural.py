@@ -23,8 +23,8 @@ if not impact_cpp.exists():
 
 text = impact_cpp.read_text(encoding='utf-8-sig')
 
-start_marker = '''    if (q4LightningGunTube) {\n        // V19T: the stock Raven electricity primitive is fine for an open beam,'''
-end_marker = '''    // Accepted Raven renderer for every non-tube electricity effect remains\n    // byte-for-byte behaviorally unchanged.'''
+start_marker = '''    if (q4LightningGunTube) {\n        // V19T: keep the Raven-generated bolt centreline, but stop presenting'''
+end_marker = '''    // Accepted renderer for every non-tube electricity effect: unchanged.'''
 
 start = text.find(start_marker)
 if start < 0:
@@ -54,22 +54,14 @@ new_block = r'''    if (q4LightningGunTube) {
         haloPt.material = "gfx/effects/weapons/lgun_coil_proc_halo";
         haloPt.blend = "add";
 
-        // ---------------------------------------------------------------
         // CORE: two intersecting ultra-thin fins following every local bend.
-        // The crossed pair gives a hint of depth without enough surface area
-        // to read as a rectangular card through the transparent glass.
-        // ---------------------------------------------------------------
         const int corePointCount = centerCount * 4;
         const int coreIndexCount = (centerCount - 1) * 12;
         std::vector<idVec3> corePoints((size_t)corePointCount);
         std::vector<float> coreUV((size_t)corePointCount * 2u);
         std::vector<int> coreIndexes((size_t)coreIndexCount);
 
-        // ---------------------------------------------------------------
-        // HALO: one faint view-facing strip, still very narrow. Its job is
-        // only to soften the filament, while the existing coil dynamic light
-        // provides the broader illumination of the glass/weapon.
-        // ---------------------------------------------------------------
+        // HALO: one faint view-facing strip, still very narrow.
         const int haloPointCount = centerCount * 2;
         const int haloIndexCount = (centerCount - 1) * 6;
         std::vector<idVec3> haloPoints((size_t)haloPointCount);
