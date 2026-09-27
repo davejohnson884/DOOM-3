@@ -22,12 +22,14 @@ text = player_cpp.read_text(encoding='utf-8-sig')
 
 
 def function_slice(src, name, next_name):
-    start_token = f'void idPlayer::{name}( void ) {{'
+    # Signatures differ: NextWeapon/PrevWeapon take void, SelectWeapon takes
+    # (int num, bool force), DropWeapon takes bool. Match only the function name.
+    start_token = f'void idPlayer::{name}'
     end_token = f'void idPlayer::{next_name}'
     start = src.find(start_token)
     if start < 0:
         raise SystemExit(f'V19V: function not found: {name}')
-    end = src.find(end_token, start)
+    end = src.find(end_token, start + len(start_token))
     if end < 0:
         raise SystemExit(f'V19V: next function marker not found after {name}: {next_name}')
     return start, end, src[start:end]
@@ -42,12 +44,10 @@ def replace_in_function(src, name, next_name, old, new, expected=1):
     return src[:start] + block + src[end:]
 
 # Mouse-wheel / inventory cycling: stock Doom 3 only breaks on a weapon with
-# ammo.  Permit the repurposed chainsaw slot even when its cells are at zero.
+# ammo. Permit the repurposed chainsaw slot even when its cells are at zero.
 cycle_old = '''\t\tif ( inventory.HasAmmo( weap ) ) {\n\t\t\tbreak;\n\t\t}\n'''
 cycle_new = '''\t\tif ( inventory.HasAmmo( weap ) || !idStr::Icmp( weap, "weapon_chainsaw" ) ) {\n\t\t\tbreak;\n\t\t}\n'''
 
-# Function order in stock Doom 3 is NextBestWeapon -> NextWeapon -> PrevWeapon
-# -> SelectWeapon, so slice against the following function markers.
 text = replace_in_function(text, 'NextWeapon', 'PrevWeapon', cycle_old, cycle_new, 1)
 text = replace_in_function(text, 'PrevWeapon', 'SelectWeapon', cycle_old, cycle_new, 1)
 
@@ -59,9 +59,9 @@ text = replace_in_function(text, 'SelectWeapon', 'DropWeapon', select_old, selec
 
 # When a newly selected weapon reaches its holstered/raise transition Doom 3
 # normally refuses to raise an empty weapon and immediately calls
-# NextBestWeapon().  Keep that behavior for everything except the Q4 LG slot.
+# NextBestWeapon(). Keep that behavior for everything except the Q4 LG slot.
 raise_old = '''\t\tif ( weapon.GetEntity()->IsHolstered() ) {\n\t\t\tif ( !weapon.GetEntity()->AmmoAvailable() ) {\n\t\t\t\t// weapons can switch automatically if they have no more ammo\n\t\t\t\tNextBestWeapon();\n\t\t\t} else {\n'''
-raise_new = '''\t\tif ( weapon.GetEntity()->IsHolstered() ) {\n\t\t\tconst char *q4CurrentWeaponDef = spawnArgs.GetString( va( "def_weapon%d", currentWeapon ) );\n\t\t\tif ( !weapon.GetEntity()->AmmoAvailable() && idStr::Icmp( q4CurrentWeaponDef, "weapon_chainsaw" ) ) {\n\t\t\t\t// Stock behavior for unrelated empty weapons.  The Q4 Lightning Gun\n\t\t\t\t// remains selectable/raiseable at zero cells.\n\t\t\t\tNextBestWeapon();\n\t\t\t} else {\n'''
+raise_new = '''\t\tif ( weapon.GetEntity()->IsHolstered() ) {\n\t\t\tconst char *q4CurrentWeaponDef = spawnArgs.GetString( va( "def_weapon%d", currentWeapon ) );\n\t\t\tif ( !weapon.GetEntity()->AmmoAvailable() && idStr::Icmp( q4CurrentWeaponDef, "weapon_chainsaw" ) ) {\n\t\t\t\t// Stock behavior for unrelated empty weapons. The Q4 Lightning Gun\n\t\t\t\t// remains selectable/raiseable at zero cells.\n\t\t\t\tNextBestWeapon();\n\t\t\t} else {\n'''
 hits = text.count(raise_old)
 if hits != 1:
     raise SystemExit(f'V19V: expected one holstered empty-ammo raise gate, found {hits}')
