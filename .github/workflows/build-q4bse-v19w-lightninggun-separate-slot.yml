@@ -1,0 +1,113 @@
+name: Build Q4BSE V19W Lightning Gun Separate Slot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - q4bse-v19w-lg-separate-slot11
+    paths:
+      - 'q4bse_port/apply_q4bse_v19w_lightninggun_separate_slot.py'
+      - '.github/workflows/build-q4bse-v19w-lightninggun-separate-slot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-game-dll:
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout V19W branch
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Apply accepted cumulative Q4BSE pipeline through V19L
+        shell: powershell
+        run: python q4bse_port/run_q4bse_v19k_pipeline.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19N source-driven Lightning Gun runtime
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19n_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19O Lightning Gun parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19o_lightninggun_parity.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19P runtime parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19p_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19Q sustained shake and dynamic lighting overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19q_lightninggun_lighting.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19R lighting visibility fix
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19r_lightninggun_lighting_fix.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19S impact and crawl parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19s_lightninggun_impact_parity.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19V empty Lightning Gun selection fix
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19v_lightninggun_allow_empty_select.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19W separate Lightning Gun slot
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19w_lightninggun_separate_slot.py "$env:GITHUB_WORKSPACE"
+
+      - name: Verify V19W source gates
+        shell: powershell
+        run: |
+          Select-String -Path neo\game\Player.cpp -Pattern 'spawnArgs.Set\( "def_weapon11", "weapon_lightninggun" \)'
+          Select-String -Path neo\game\Player.cpp -Pattern 'inventory.HasAmmo\( weap \) \|\| !idStr::Icmp\( weap, "weapon_lightninggun" \)'
+          Select-String -Path neo\game\Player.cpp -Pattern 'q4CurrentWeaponDef, "weapon_lightninggun"'
+          Select-String -Path neo\game\Player.cpp -Pattern 'animPrefix = "weapon_plasmagun"'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'q4_lightning_runtime'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'Q4BSE_AttachEffectToEntityTransform\( crawlFx, hitEnt'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'q4_lg_shake_scale'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'Q4_LG_BEAM_LIGHT_COUNT'
+          if (Select-String -Path neo\game\Player.cpp -Pattern '"weapon_chainsaw"') { throw 'V19W left a quoted weapon_chainsaw runtime gate in Player.cpp' }
+
+      - name: Build Game Win32 Release
+        shell: powershell
+        run: msbuild neo\game.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /verbosity:minimal
+
+      - name: Verify gamex86.dll
+        shell: powershell
+        run: |
+          $dll = Join-Path $env:GITHUB_WORKSPACE 'build\Win32\Release\gamex86.dll'
+          if (!(Test-Path $dll)) { throw 'gamex86.dll was not produced' }
+          Get-Item $dll | Format-List FullName,Length,LastWriteTime
+          Get-FileHash $dll -Algorithm SHA256
+
+      - name: Stage V19W artifact
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
+          Copy-Item neo\game\Player.cpp artifact\Player.cpp
+          Copy-Item neo\game\Weapon.cpp artifact\Weapon.cpp
+          @"
+          Q4BSE V19W LIGHTNING GUN - SEPARATE WEAPON SLOT
+          =================================================
+          Base: accepted V19V runtime.
+          V19W changes:
+          - slot 11 is weapon_lightninggun
+          - Lightning Gun no longer occupies weapon_chainsaw
+          - empty-ammo scrolling/direct selection/raise behavior follows weapon_lightninggun
+          - player/world animation prefix aliases to Doom 3 plasmagun for a two-handed stance
+          - weapon_chainsaw is free for the future Q4 Gauntlet/Ripper
+          - Lightning Gun firing/beam/impact/crawl/lighting/shake runtime is unchanged
+          "@ | Set-Content artifact\README_TEST.txt
+
+      - name: Upload V19W artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-V19W-LightningGun-Separate-Slot
+          path: artifact/
+          if-no-files-found: error
