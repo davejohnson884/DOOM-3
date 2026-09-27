@@ -1,0 +1,105 @@
+name: Build Q4BSE V19V Lightning Gun Final
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - q4bse-v19v-lg-final-hd-emptyselect
+    paths:
+      - 'q4bse_port/apply_q4bse_v19v_lightninggun_allow_empty_select.py'
+      - '.github/workflows/build-q4bse-v19v-lightninggun-final.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-game-dll:
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout V19V branch
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Apply accepted cumulative Q4BSE pipeline through V19L
+        shell: powershell
+        run: python q4bse_port/run_q4bse_v19k_pipeline.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19N source-driven Lightning Gun runtime
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19n_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19O Lightning Gun parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19o_lightninggun_parity.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19P runtime parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19p_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19Q sustained shake and dynamic lighting overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19q_lightninggun_lighting.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19R lighting visibility fix
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19r_lightninggun_lighting_fix.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19S impact and crawl parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19s_lightninggun_impact_parity.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19V empty Lightning Gun selection fix
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19v_lightninggun_allow_empty_select.py "$env:GITHUB_WORKSPACE"
+
+      - name: Verify V19V source gates
+        shell: powershell
+        run: |
+          Select-String -Path neo\game\Player.cpp -Pattern 'inventory.HasAmmo\( weap \) \|\| !idStr::Icmp\( weap, "weapon_chainsaw" \)'
+          Select-String -Path neo\game\Player.cpp -Pattern 'q4CurrentWeaponDef'
+          Select-String -Path neo\game\Player.cpp -Pattern 'Q4 Lightning Gun'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'Q4BSE_AttachEffectToEntityTransform\( crawlFx, hitEnt'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'q4_lg_shake_scale'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'Q4_LG_BEAM_LIGHT_COUNT'
+
+      - name: Build Game Win32 Release
+        shell: powershell
+        run: msbuild neo\game.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /verbosity:minimal
+
+      - name: Verify gamex86.dll
+        shell: powershell
+        run: |
+          $dll = Join-Path $env:GITHUB_WORKSPACE 'build\Win32\Release\gamex86.dll'
+          if (!(Test-Path $dll)) { throw 'gamex86.dll was not produced' }
+          Get-Item $dll | Format-List FullName,Length,LastWriteTime
+          Get-FileHash $dll -Algorithm SHA256
+
+      - name: Stage V19V artifact
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
+          Copy-Item neo\game\Player.cpp artifact\Player.cpp
+          Copy-Item neo\game\Weapon.cpp artifact\Weapon.cpp
+          @"
+          Q4BSE V19V LIGHTNING GUN FINAL RUNTIME
+          =======================================
+          Base: accepted V19S runtime.
+          V19V behavior fix:
+          - weapon_chainsaw / Lightning Gun remains selectable at zero cells
+          - mouse-wheel next/previous cycling no longer skips the owned empty LG
+          - direct selection is allowed at zero cells
+          - raise transition does not immediately auto-switch away from empty LG
+          - unrelated empty weapons retain stock Doom 3 behavior
+          "@ | Set-Content artifact\README_TEST.txt
+
+      - name: Upload V19V artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-V19V-LightningGun-Final
+          path: artifact/
+          if-no-files-found: error
