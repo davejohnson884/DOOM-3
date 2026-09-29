@@ -1,0 +1,131 @@
+name: Build Q4BSE V19Z2 Blaster Flashlight
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - q4bse-v19z-lg-chainsaw-q4-cycle
+    paths:
+      - 'q4bse_port/apply_q4bse_v19z_q4_weapon_cycle_flashlight_ammo.py'
+      - 'q4bse_port/apply_q4bse_v19z1_disable_flashlight_autoswitch.py'
+      - 'q4bse_port/apply_q4bse_v19z2_blaster_flashlight_logic.py'
+      - '.github/workflows/build-q4bse-v19z2-blaster-flashlight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-game-dll:
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout V19Z2 branch
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Apply accepted cumulative Q4BSE pipeline through V19L
+        shell: powershell
+        run: python q4bse_port/run_q4bse_v19k_pipeline.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19N source-driven Lightning Gun runtime
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19n_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19O Lightning Gun parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19o_lightninggun_parity.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19P runtime parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19p_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19Q sustained shake and dynamic lighting overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19q_lightninggun_lighting.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19R lighting visibility fix
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19r_lightninggun_lighting_fix.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19S impact and crawl parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19s_lightninggun_impact_parity.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19V empty Lightning Gun selection fix
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19v_lightninggun_allow_empty_select.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19Z Q4 cycle flashlight and Lightning ammo
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19z_q4_weapon_cycle_flashlight_ammo.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19Z1 stock flashlight pickup suppression
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19z1_disable_flashlight_autoswitch.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19Z2 Blaster flashlight behavior
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19z2_blaster_flashlight_logic.py "$env:GITHUB_WORKSPACE"
+
+      - name: Verify V19Z2 source gates
+        shell: powershell
+        run: |
+          Select-String -Path neo\game\Player.cpp -Pattern 'SlotForWeapon\( "weapon_pistol" \)'
+          Select-String -Path neo\game\Player.cpp -Pattern 'const bool onBlaster'
+          Select-String -Path neo\game\Player.cpp -Pattern 'const bool onMachinegun'
+          Select-String -Path neo\game\Player.cpp -Pattern 'q4OldWeaponHasFlashlight'
+          Select-String -Path neo\game\Player.cpp -Pattern 'weaponName != "weapon_flashlight"'
+          Select-String -Path neo\game\Player.cpp -Pattern 'max_ammo_lightninggun'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'ammo_lightninggun'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'q4_lg_shake_scale'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'Q4_LG_BEAM_LIGHT_COUNT'
+
+      - name: Build Game Win32 Release
+        shell: powershell
+        run: msbuild neo\game.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /verbosity:minimal
+
+      - name: Verify gamex86.dll
+        shell: powershell
+        run: |
+          $dll = Join-Path $env:GITHUB_WORKSPACE 'build\Win32\Release\gamex86.dll'
+          if (!(Test-Path $dll)) { throw 'gamex86.dll was not produced' }
+          Get-Item $dll | Format-List FullName,Length,LastWriteTime
+          Get-FileHash $dll -Algorithm SHA256
+
+      - name: Stage V19Z2 artifact
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
+          Copy-Item neo\game\Player.cpp artifact\Player.cpp
+          Copy-Item neo\game\Weapon.cpp artifact\Weapon.cpp
+          @"
+          Q4BSE V19Z2 - BLASTER / MACHINEGUN FLASHLIGHT LOGIC
+          =====================================================
+          Base: accepted V19Z1 integration.
+
+          F / _impulse11 behavior:
+          - While holding Blaster (weapon_pistol): toggle Blaster flashlight only.
+          - While holding Machinegun: toggle Machinegun flashlight only.
+          - While holding any other weapon: raise Machinegun with flashlight ON.
+          - Leaving either flashlight-capable weapon resets q4_flashlight OFF so
+            the next weapon does not inherit the previous weapon's light state.
+
+          Everything else from V19Z1 is unchanged:
+          - Lightning Gun remains weapon_chainsaw.
+          - Mouse wheel excludes Soul Cube and stock handheld flashlight.
+          - End cycle remains Rocket -> Lightning Gun -> Dark Matter Gun.
+          - Q / _impulse9 still directly selects Soul Cube.
+          - R / _impulse13 remains reload.
+          - ammo_lightninggun remains dedicated with max reserve 400.
+          "@ | Set-Content artifact\README_TEST.txt
+
+      - name: Upload V19Z2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-V19Z2-Blaster-Flashlight
+          path: artifact/
+          if-no-files-found: error
