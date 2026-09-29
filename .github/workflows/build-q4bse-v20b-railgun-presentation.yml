@@ -64,7 +64,7 @@ jobs:
         shell: powershell
         run: |
           Select-String -Path neo\game\Weapon.cpp -Pattern 'Q4 RAILGUN V20B: model_view'
-          Select-String -Path neo\game\Weapon.cpp -Pattern 'srocket_muzzle_flash'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'Q4 RAILGUN V20B: FP joints'
           Select-String -Path neo\game\Weapon.cpp -Pattern 'muzzle_flash'
           Select-String -Path neo\game\Player.cpp -Pattern 'def_weapon13.*, "weapon_railgun"'
       - name: Build Game Win32 Release
@@ -85,7 +85,7 @@ jobs:
           Copy-Item neo\game\Player.cpp artifact\Player.cpp
           Copy-Item neo\game\Weapon.cpp artifact\Weapon.cpp
           Copy-Item neo\game\script\Script_Program.cpp artifact\Script_Program.cpp
-          'V20B Railgun presentation/joint fallback build' | Set-Content artifact\README_TEST.txt
+          'V20B Railgun presentation/model diagnostic build' | Set-Content artifact\README_TEST.txt
       - name: Upload V20B artifact
         uses: actions/upload-artifact@v4
         with:
