@@ -1,0 +1,130 @@
+name: Build Q4BSE V20A Native Railgun
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - q4bse-v20a-railgun-native
+    paths:
+      - 'q4bse_port/apply_q4bse_v20a_railgun_native.py'
+      - '.github/workflows/build-q4bse-v20a-railgun-native.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-game-dll:
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout V20A branch
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Apply accepted cumulative Q4BSE pipeline through V19L
+        shell: powershell
+        run: python q4bse_port/run_q4bse_v19k_pipeline.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19N source-driven Lightning Gun runtime
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19n_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19O Lightning Gun parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19o_lightninggun_parity.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19P runtime parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19p_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19Q sustained shake and dynamic lighting overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19q_lightninggun_lighting.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19R lighting visibility fix
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19r_lightninggun_lighting_fix.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19S impact and crawl parity overlay
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19s_lightninggun_impact_parity.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19V empty Lightning Gun selection fix
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19v_lightninggun_allow_empty_select.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19Z Q4 cycle flashlight and Lightning ammo
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19z_q4_weapon_cycle_flashlight_ammo.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19Z1 stock flashlight pickup suppression
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19z1_disable_flashlight_autoswitch.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V19Z2 Blaster flashlight behavior
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19z2_blaster_flashlight_logic.py "$env:GITHUB_WORKSPACE"
+
+      - name: Apply V20A native Railgun integration
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v20a_railgun_native.py "$env:GITHUB_WORKSPACE"
+
+      - name: Verify V20A source gates
+        shell: powershell
+        run: |
+          Select-String -Path neo\game\Player.cpp -Pattern 'def_weapon13.*, "weapon_railgun"'
+          Select-String -Path neo\game\Player.cpp -Pattern 'max_ammo_railgun.*, "35"'
+          Select-String -Path neo\game\Player.cpp -Pattern '"weapon_railgun"'
+          Select-String -Path neo\game\Player.cpp -Pattern 'animPrefix = "plasmagun"'
+          Select-String -Path neo\game\Player.cpp -Pattern 'const bool onBlaster'
+          Select-String -Path neo\game\Player.cpp -Pattern 'q4OldWeaponHasFlashlight'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'ammo_railgun'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'return \( ammo_t \)11'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'q4_railgun_runtime'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'Q4BSE_PlayEffectBetween\( railTrailFx'
+          Select-String -Path neo\game\script\Script_Program.cpp -Pattern 'script/weapon_railgun.script'
+
+      - name: Build Game Win32 Release
+        shell: powershell
+        run: msbuild neo\game.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /verbosity:minimal
+
+      - name: Verify gamex86.dll
+        shell: powershell
+        run: |
+          $dll = Join-Path $env:GITHUB_WORKSPACE 'build\Win32\Release\gamex86.dll'
+          if (!(Test-Path $dll)) { throw 'gamex86.dll was not produced' }
+          Get-Item $dll | Format-List FullName,Length,LastWriteTime
+          Get-FileHash $dll -Algorithm SHA256
+
+      - name: Stage V20A artifact
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
+          Copy-Item neo\game\Player.cpp artifact\Player.cpp
+          Copy-Item neo\game\Weapon.cpp artifact\Weapon.cpp
+          Copy-Item neo\game\script\Script_Program.cpp artifact\Script_Program.cpp
+          @"
+          Q4BSE V20A - NATIVE QUAKE 4 RAILGUN
+          =====================================
+          Base: accepted V19Z2 integration.
+
+          - weapon_railgun is a true additional weapon in slot 13.
+          - Dedicated ammo_railgun is ammo index 11; max reserve 35.
+          - Native 40,000-unit hitscan path with source-driven damage and Raven BSE FX.
+          - 3-round clip / Doom 3 compatibility state script.
+          - Q4 wheel tail: Rocket -> Railgun -> Lightning Gun -> Dark Matter Gun.
+          - Railgun third-person uses Doom 3 Plasma Gun player animation family.
+          - V19Z2 Blaster/Machinegun flashlight logic is unchanged.
+          - Lightning Gun remains weapon_chainsaw with ammo index 10.
+          "@ | Set-Content artifact\README_TEST.txt
+
+      - name: Upload V20A artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-V20A-Native-Railgun
+          path: artifact/
+          if-no-files-found: error
