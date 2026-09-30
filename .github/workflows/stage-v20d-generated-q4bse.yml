@@ -34,7 +34,7 @@ jobs:
           python q4bse_port/apply_q4bse_v19z1_disable_flashlight_autoswitch.py "$env:GITHUB_WORKSPACE"
           python q4bse_port/apply_q4bse_v19z2_blaster_flashlight_logic.py "$env:GITHUB_WORKSPACE"
           python q4bse_port/apply_q4bse_v20a_railgun_native.py "$env:GITHUB_WORKSPACE"
-          python q4bse_port/apply_q4bse_v20d_q4_modeldef_compat_clean.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v20d_q4_modeldef_compat.py "$env:GITHUB_WORKSPACE"
       - name: Stage generated sources
         shell: powershell
         run: |
