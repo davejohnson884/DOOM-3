@@ -1,0 +1,8 @@
+V20E Railgun parity scope
+- V20D clean Q4 modelDef compatibility retained
+- Raven Railgun trail density/particleCap supported
+- Raven linked ribbon primitive supported
+- spiral + useEndOrigin + linearSpacing supported
+- Railgun impact bounce syntax accepted so full effects parse
+- Railgun GUI weapon_ammo event is content-side in the V20E PK4
+- idle hum attenuation is content-side in the V20E PK4
