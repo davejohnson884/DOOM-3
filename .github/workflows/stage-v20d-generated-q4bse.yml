@@ -38,9 +38,8 @@ jobs:
       - name: Stage generated sources
         shell: powershell
         run: |
-          New-Item -ItemType Directory -Force artifact | Out-Null
-          Copy-Item neo\game\q4bse\Q4BSEDoom3.cpp artifact\Q4BSEDoom3.cpp
-          Copy-Item neo\game\q4bse\Q4BSEDoom3.h artifact\Q4BSEDoom3.h
+          New-Item -ItemType Directory -Force artifact\q4bse | Out-Null
+          Copy-Item neo\game\q4bse\* artifact\q4bse\ -Recurse
           Copy-Item neo\game\Weapon.cpp artifact\Weapon.cpp
           Copy-Item neo\game\Weapon.h artifact\Weapon.h
           Copy-Item neo\game\Player.cpp artifact\Player.cpp
