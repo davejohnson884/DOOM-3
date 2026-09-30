@@ -1,0 +1,101 @@
+name: Build Q4BSE V20G Railgun Origin
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - q4bse-v20d-railgun-clean-parity
+    paths:
+      - 'q4bse_port/apply_q4bse_v20g_railgun_fx_origin.py'
+      - '.github/workflows/build-q4bse-v20g-railgun-origin.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-game-dll:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - name: Checkout V20G branch
+        uses: actions/checkout@v4
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+      - name: Apply accepted cumulative Q4BSE pipeline through V19L
+        shell: powershell
+        run: python q4bse_port/run_q4bse_v19k_pipeline.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V19N Lightning runtime
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19n_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V19O Lightning parity
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19o_lightninggun_parity.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V19P Lightning runtime parity
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19p_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V19Q shake and lighting
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19q_lightninggun_lighting.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V19R lighting fix
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19r_lightninggun_lighting_fix.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V19S impact parity
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19s_lightninggun_impact_parity.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V19V empty select
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19v_lightninggun_allow_empty_select.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V19Z cycle flashlight and Lightning ammo
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19z_q4_weapon_cycle_flashlight_ammo.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V19Z1 flashlight autoswitch suppression
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19z1_disable_flashlight_autoswitch.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V19Z2 Blaster flashlight behavior
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v19z2_blaster_flashlight_logic.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V20A native Railgun
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v20a_railgun_native.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V20D clean Q4 compatibility
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v20d_clean_compat.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V20E Railgun BSE parity
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v20e_railgun_bse_parity.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V20G Railgun Q4 FX origin
+        shell: powershell
+        run: python q4bse_port/apply_q4bse_v20g_railgun_fx_origin.py "$env:GITHUB_WORKSPACE"
+      - name: Verify V20G source gates
+        shell: powershell
+        run: |
+          Select-String -Path neo\game\Weapon.h -Pattern 'localOffset = vec3_origin'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'localOrigin = localOffset \* localAxis \+ localOrigin'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'railFxOriginOffset = weaponDef->dict.GetVector'
+          Select-String -Path neo\game\Weapon.cpp -Pattern 'GetQ4PresentedJointTransform\( flashJointView, railOrigin, railAxis, railFxOriginOffset \)'
+          Select-String -Path neo\game\q4bse\Q4BSEImpactM3.cpp -Pattern 'RenderQ4LinkedSegment'
+      - name: Build Game Win32 Release
+        shell: powershell
+        run: msbuild neo\game.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /verbosity:minimal
+      - name: Verify gamex86.dll
+        shell: powershell
+        run: |
+          $dll = Join-Path $env:GITHUB_WORKSPACE 'build\Win32\Release\gamex86.dll'
+          if (!(Test-Path $dll)) { throw 'gamex86.dll was not produced' }
+          Get-Item $dll | Format-List FullName,Length,LastWriteTime
+          Get-FileHash $dll -Algorithm SHA256
+      - name: Stage V20G artifact
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Copy-Item build\Win32\Release\gamex86.dll artifact\gamex86.dll
+          Copy-Item neo\game\Weapon.cpp artifact\Weapon.cpp
+          Copy-Item neo\game\Weapon.h artifact\Weapon.h
+          Copy-Item neo\game\q4bse\Q4BSEImpactM3.cpp artifact\Q4BSEImpactM3.cpp
+          'V20G Railgun retail Q4 fxOriginOffset build' | Set-Content artifact\README_TEST.txt
+      - name: Upload V20G artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q4BSE-V20G-Railgun-Origin
+          path: artifact/
+          if-no-files-found: error
