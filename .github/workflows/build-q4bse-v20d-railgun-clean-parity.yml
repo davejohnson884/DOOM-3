@@ -6,7 +6,7 @@ on:
     branches:
       - q4bse-v20d-railgun-clean-parity
     paths:
-      - 'q4bse_port/apply_q4bse_v20d_q4_modeldef_compat.py'
+      - 'q4bse_port/apply_q4bse_v20d_clean_compat.py'
       - '.github/workflows/build-q4bse-v20d-railgun-clean-parity.yml'
 
 permissions:
@@ -57,9 +57,9 @@ jobs:
       - name: Apply V20A native Railgun integration
         shell: powershell
         run: python q4bse_port/apply_q4bse_v20a_railgun_native.py "$env:GITHUB_WORKSPACE"
-      - name: Apply V20D generic Q4 modelDef compatibility
+      - name: Apply V20D clean Q4 modelDef compatibility
         shell: powershell
-        run: python q4bse_port/apply_q4bse_v20d_q4_modeldef_compat.py "$env:GITHUB_WORKSPACE"
+        run: python q4bse_port/apply_q4bse_v20d_clean_compat.py "$env:GITHUB_WORKSPACE"
       - name: Verify V20D source gates
         shell: powershell
         run: |
@@ -93,8 +93,8 @@ jobs:
           Q4BSE V20D - CLEAN Q4 RAILGUN PARITY
           =====================================
           V20A native Railgun gameplay/runtime retained.
-          Raven modelDef `rate` is now supported generically by the Doom 3 host.
-          Raven joint_view_* and joint_world_* keys are now honored generically.
+          Raven modelDef rate is now supported generically by the Doom 3 host.
+          Accepted Raven joint_view_* bridge retained; joint_world_* is generic too.
           No Railgun-specific presentation fallback or diagnostic branch.
           "@ | Set-Content artifact\README_TEST.txt
       - name: Upload V20D artifact
