@@ -2,6 +2,11 @@ name: Stage V20D Generated Q4BSE Sources
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - q4bse-v20d-railgun-clean-parity
+    paths:
+      - '.github/workflows/stage-v20d-generated-q4bse.yml'
 
 permissions:
   contents: read
