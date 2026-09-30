@@ -1,0 +1,46 @@
+name: Stage V20D Generated Q4BSE Sources
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage-source:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply accepted cumulative Q4BSE pipeline through V19L
+        shell: powershell
+        run: python q4bse_port/run_q4bse_v19k_pipeline.py "$env:GITHUB_WORKSPACE"
+      - name: Apply V19N through V20D overlays
+        shell: powershell
+        run: |
+          python q4bse_port/apply_q4bse_v19n_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v19o_lightninggun_parity.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v19p_lightninggun_runtime.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v19q_lightninggun_lighting.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v19r_lightninggun_lighting_fix.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v19s_lightninggun_impact_parity.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v19v_lightninggun_allow_empty_select.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v19z_q4_weapon_cycle_flashlight_ammo.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v19z1_disable_flashlight_autoswitch.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v19z2_blaster_flashlight_logic.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v20a_railgun_native.py "$env:GITHUB_WORKSPACE"
+          python q4bse_port/apply_q4bse_v20d_q4_modeldef_compat_clean.py "$env:GITHUB_WORKSPACE"
+      - name: Stage generated sources
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Copy-Item neo\game\q4bse\Q4BSEDoom3.cpp artifact\Q4BSEDoom3.cpp
+          Copy-Item neo\game\q4bse\Q4BSEDoom3.h artifact\Q4BSEDoom3.h
+          Copy-Item neo\game\Weapon.cpp artifact\Weapon.cpp
+          Copy-Item neo\game\Weapon.h artifact\Weapon.h
+          Copy-Item neo\game\Player.cpp artifact\Player.cpp
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V20D-Generated-Q4BSE-Sources
+          path: artifact/
+          if-no-files-found: error
